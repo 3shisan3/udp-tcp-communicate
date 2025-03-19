@@ -1,0 +1,8 @@
+# 编译器产出文件
+.vscode
+# 编译过程产出
+build
+# 编译结果产出
+bin
+# 编译install生成内容
+package

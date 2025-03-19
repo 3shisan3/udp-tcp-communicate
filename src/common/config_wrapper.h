@@ -1,0 +1,38 @@
+/***************************************************************
+Copyright (c) 2022-2030, shisan233@sszc.live.
+All rights reserved.
+File:        config_wrapper.h
+Version:     1.0
+Author:      cjx
+start date:
+Description: 配置文件管理工厂
+    通过配置文件调用其他基类，进行构造，赋值给他们指向指定子类对象的指针
+Version history
+
+[序号]    |   [修改日期]  |   [修改者]   |   [修改内容]
+
+*****************************************************************/
+
+#ifndef CONFIG_WRAPPER_H_
+#define CONFIG_WRAPPER_H_
+
+#include <memory>
+
+#include "utils/singleton.h"
+
+class ConfigWrapper
+{
+public:
+    friend SingletonTemplate<ConfigWrapper>;
+
+    int loadCfgFile(const std::string &cfgPath);
+
+
+
+private:
+    std::unique_ptr<ConfigWrapper> m_cfgPointer_;
+
+};
+
+
+#endif  // CONFIG_WRAPPER_H_
