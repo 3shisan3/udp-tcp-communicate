@@ -28,10 +28,15 @@ public:
     // 删除拷贝构造函数和拷贝赋值运算符
     SingletonTemplate(const SingletonTemplate&) = delete;
     SingletonTemplate& operator=(const SingletonTemplate&) = delete;
+    // 删除移动构造函数和移动赋值运算符
+    SingletonTemplate(SingletonTemplate&&) = delete;
+    SingletonTemplate& operator=(SingletonTemplate&&) = delete;
 
     /**
      * @brief 获取单例
      *
+     * 构造崩溃问题，容易定位排查，暂不引入异常处理
+     * 
      * @return 
      */
     static SingletonClass &getSingletonInstance()
@@ -72,7 +77,7 @@ private:
 };
 
 template<class SingletonClass>
-std::unique_ptr<SingletonClass> SingletonTemplate<SingletonClass>::m_s_pSingletonInstance = nullptr;
+std::unique_ptr<SingletonClass> SingletonTemplate<SingletonClass>::m_s_pSingletonInstance;
 
 template<class SingletonClass>
 std::once_flag SingletonTemplate<SingletonClass>::m_s_singleFlag;

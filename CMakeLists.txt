@@ -10,31 +10,67 @@ string(STRIP ${USER_HOME_DIR} USER_HOME_DIR)
 
 set(CMAKE_INSTALL_PREFIX "${USER_HOME_DIR}/program_running/${PROJECT_NAME}")
 
+# 设置构建选项前提
+option(DUAL_ENDPOINT_MODE "部署在双端（接收/发送）使用" ON)
+
+#设置构建中用到的变量
+set(PROJECT_ROOT_PATH ${CMAKE_CURRENT_SOURCE_DIR})
+
 # 设置C++标准为
 set(CMAKE_CXX_STANDARD 17)
 
 # 导入配置
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/thirddepend.cmake)
+# include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/thirddepend.cmake)
 
 # 添加编译输出目录
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin)
 
 # 添加头文件
 include_directories(
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
-    # ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/_external_api
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core
 )
 
-# 添加源代码文件  
+# 添加基础模板源代码文件  
 file(GLOB_RECURSE SOURCES 
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/*.cpp
 )
 
 # 编译生成可执行程序
 add_library(${PROJECT_NAME} SHARED ${SOURCES})
 
-# 链接 zlib 库
-target_link_libraries(${PROJECT_NAME} PRIVATE z)
+# 两侧均部署该库场景
+if(DUAL_ENDPOINT_MODE)
+    message(STATUS "Building in DUAL_ENDPOINT_MODE")
+    
+    # 添加双端模式专用源代码
+    file(GLOB_RECURSE DUAL_SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/impl/*.cpp
+    )
+    target_sources(${PROJECT_NAME} PRIVATE ${DUAL_SOURCES})
+    
+    # 添加双端模式专用头文件路径
+    target_include_directories(${PROJECT_NAME} PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/impl
+    )
+    
+    # 添加宏，便于代码中的统一
+    target_compile_definitions(${PROJECT_NAME} PRIVATE
+        $<$<BOOL:${DUAL_ENDPOINT_MODE}>:DUAL_ENDPOINT_MODE>
+    )
+endif()
+
+# 链接依赖库
+target_link_libraries(${PROJECT_NAME} PRIVATE 
+
+)
+# 如果是双端模式，添加额外的链接库
+if(DUAL_ENDPOINT_MODE)
+    target_link_libraries(${PROJECT_NAME} PRIVATE
+        
+    )
+endif()
+
 
 # 为特定目标添加编译时的宏定义，包括值
 target_compile_definitions(${PROJECT_NAME} PRIVATE PROJECT_NAME="${PROJECT_NAME} ") 

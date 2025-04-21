@@ -5,7 +5,7 @@ File:        check_methods.h
 Version:     1.0
 Author:      cjx
 start date: 
-Description: 校验和计算
+Description: 自定义结构配套的相关校验方法
 Version history
 
 [序号]    |   [修改日期]  |   [修改者]   |   [修改内容]
@@ -18,7 +18,7 @@ Version history
 #include <arpa/inet.h>
 #include <zlib.h>
 
-#include "_external_api/communicate_define.h"
+#include "struct_impl.h"
 
 namespace communicate
 {

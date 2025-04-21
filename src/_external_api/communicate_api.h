@@ -15,10 +15,26 @@ Version history
 #ifndef COMMUNICATE_API_H
 #define COMMUNICATE_API_H
 
-#include "communicate_define.h"
+#include <memory>
 
 namespace communicate
 {
+
+/* 消息基类，使用时继承重载其中消息处理函数进行解析 */
+class SubscribebBase
+{
+public:
+    virtual ~SubscribebBase() = default;
+
+protected:
+    /* @brief 处理接收到的数据 
+       @param topic：消息的通道名
+       @param data：收到的数据
+       @return 
+    */
+    virtual int handleData(const char *topic, std::shared_ptr<void> data) = 0;
+
+};
 
 /**
  * @brief 根据配置文件初始化

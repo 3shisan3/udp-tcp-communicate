@@ -6,14 +6,6 @@
 namespace communicate
 {
 
-int SubscribebBase::handleMessage(const char *topic, std::shared_ptr<void> message)
-{
-    // 去除使用该库默认带的header
-
-
-    return handleData(topic, message);
-}
-
 
 int Initialize(const char* cfgPath)
 {
