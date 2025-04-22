@@ -16,14 +16,13 @@ set(PROJECT_HEADER_DIR "")
 
 # 设置构建选项前提
 option(DUAL_ENDPOINT_MODE "部署在双端（接收/发送）使用" ON)
-option(FETCHCONTENT_MANAGE_DEPS  "使用 FetchContent 来管理项目依赖" ON)
-
+option(FETCHCONTENT_MANAGE_DEPS  "使用 FetchContent 来管理项目依赖" OFF)
 
 # 设置C++标准为
 set(CMAKE_CXX_STANDARD 17)
 
 # 导入配置
-# include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/thirddepend.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/thirddepend.cmake)
 
 # 添加编译输出目录
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin)
@@ -38,6 +37,10 @@ include_directories(
 file(GLOB_RECURSE SOURCES 
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/*.cpp
 )
+
+# 打印必要信息
+message(STATUS "CMAKE_BUILD_TYPE:${CMAKE_BUILD_TYPE}")
+message(STATUS "EXTRA_HEADER:${PROJECT_HEADER_DIR}")
 
 # 编译生成可执行程序
 add_library(${PROJECT_NAME} SHARED ${SOURCES})
@@ -67,7 +70,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 
 # 链接依赖库
 target_link_libraries(${PROJECT_NAME} PRIVATE 
-
+    yaml-cpp
 )
 # 如果是双端模式，添加额外的链接库
 if(DUAL_ENDPOINT_MODE)

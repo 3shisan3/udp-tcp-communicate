@@ -28,11 +28,11 @@ public:
 
 protected:
     /* @brief 处理接收到的数据 
-       @param topic：消息的通道名
-       @param data：收到的数据
+       @param topic：   消息的通道名
+       @param msg：     收到的信息
        @return 
     */
-    virtual int handleData(const char *topic, std::shared_ptr<void> data) = 0;
+    virtual int handleMsg(const char *topic, std::shared_ptr<void> msg) = 0;
 
 };
 
