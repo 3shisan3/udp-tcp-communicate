@@ -51,10 +51,36 @@ bool UdpCommunicate::sendData(const std::string &data, const std::string &addres
         return false;
     }
 
-    if (sendto(m_udpSocket_, data.c_str(), data.size(), 0, (struct sockaddr *)&m_remoteAddr_, sizeof(m_remoteAddr_)) < 0)
+    const size_t MAX_DATA_LEN = 1024;
+    unsigned char cyclicCounter = 0;
+
+    if (data.size() <= MAX_DATA_LEN)
     {
-        std::cerr << "Failed to send data" << std::endl;
-        return false;
+        // 数据量较小直接发送
+        if (sendto(m_udpSocket_, data.c_str(), data.size(), 0, (struct sockaddr *)&m_remoteAddr_, sizeof(m_remoteAddr_)) < 0)
+        {
+            std::cerr << "Failed to send data" << std::endl;
+            return false;
+        }
+    }
+    else
+    {
+        // 数据量较大则需要分包
+        size_t totalPage = data.size() / MAX_DATA_LEN + (data.size() % MAX_DATA_LEN != 0 ? 1 : 0);
+
+        for (size_t i = 0; i < totalPage; ++i)
+        {
+            size_t currentPageSize = (i == totalPage - 1) ? (data.size() % MAX_DATA_LEN) : MAX_DATA_LEN;
+            const char *currentPageData = data.c_str() + i * MAX_DATA_LEN;
+
+            if (sendto(m_udpSocket_, currentPageData, currentPageSize, 0, (struct sockaddr *)&m_remoteAddr_, sizeof(m_remoteAddr_)) < 0)
+            {
+                std::cerr << "Failed to send data on page " << i << std::endl;
+                return false;
+            }
+
+            cyclicCounter++;
+        }
     }
 
     return true;
