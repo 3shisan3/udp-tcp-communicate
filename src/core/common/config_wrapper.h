@@ -27,7 +27,16 @@ public:
 
     int loadCfgFile(const std::string &cfgPath);
 
+protected:
+    enum class FileType
+    {
+        FILE_TYPE_JSON = 0,
+        FILE_TYPE_YAML,
+        FILE_TYPE_UNKNOWN
+    };
 
+    // 识别文件类型
+    FileType identifyFileType(const std::string &cfgPath);
 
 private:
     std::unique_ptr<ConfigWrapper> m_cfgPointer_;

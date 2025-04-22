@@ -19,7 +19,7 @@ Version history
 #include <memory>
 #include <string>
 
-#include "_external_api/communicate_define.h"
+#include "communicate_api.h"
 #include "serialize_wrapper.h"
 #include "utils/singleton.h"
 

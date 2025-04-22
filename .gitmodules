@@ -1,7 +1,17 @@
-[submodule "thirdparty/zlib"]
-	path = thirdparty/zlib
-	url = https://github.com/madler/zlib
-
 [submodule "thirdparty/yaml-cpp"]
 	path = thirdparty/yaml-cpp
 	url = https://github.com/jbeder/yaml-cpp.git
+
+# 直接使用头文件（提供引用项目地址）
+# [submodule "thirdparty/json_nlohmann"]
+# 	path = thirdparty/json_nlohmann
+# 	url = https://github.com/nlohmann/json
+
+# 直接拷贝头文件和源文件（项目管理很乱，release包分类不好，简易直接使用文件）
+# [submodule "thirdparty/kcp"]
+# 	path = thirdparty/kcp
+# 	url = https://github.com/skywind3000/kcp.git
+
+# [submodule "thirdparty/zlib"]
+# 	path = thirdparty/zlib
+# 	url = https://github.com/madler/zlib
