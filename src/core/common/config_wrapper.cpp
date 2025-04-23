@@ -3,10 +3,10 @@
 #include <fstream>
 #include <sstream>
 
-#include "utils/json.hpp"
-#include "utils/yaml.hpp"
 #include "config/json_cfg.h"
 #include "config/yaml_cfg.h"
+#include "utils/json.hpp"
+#include "utils/yaml.hpp"
 
 ConfigWrapper::FileType ConfigWrapper::identifyFileType(const std::string &cfgPath)
 {

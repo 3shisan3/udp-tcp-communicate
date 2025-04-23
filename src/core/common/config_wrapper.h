@@ -18,6 +18,7 @@ Version history
 
 #include <memory>
 
+#include "config/config_interface.h"
 #include "utils/singleton.h"
 
 class ConfigWrapper
@@ -28,31 +29,24 @@ public:
     int loadCfgFile(const std::string &cfgPath);
     
     // 返回配置文件实例指针
-    ConfigWrapper &getCfgInstance()
+    ConfigInterface &getCfgInstance()
     {
         return *m_cfgPointer_;
     }
 
 protected:
-    // 一般不会用到（会先load, 有了配置路径了），设置配置文件保存路径
-    int setSavePath(const std::string &cfgPath);
-    // 通常查询接口
-    virtual bool getValue(const std::string &key, std::string &value) = 0;
-    // 通常设置接口
-    virtual bool setValue(const std::string &key, const std::string &value) = 0;
-
     enum class FileType
     {
         FILE_TYPE_JSON = 0,
         FILE_TYPE_YAML,
         FILE_TYPE_UNKNOWN
     };
-
     // 识别文件类型
     FileType identifyFileType(const std::string &cfgPath);
 
 private:
-    std::unique_ptr<ConfigWrapper> m_cfgPointer_;
+    FileType m_cfgType_;
+    std::unique_ptr<ConfigInterface> m_cfgPointer_;
 
 };
 

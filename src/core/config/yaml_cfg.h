@@ -15,24 +15,17 @@ Version history
 #ifndef YAML_CFG_H
 #define YAML_CFG_H
 
-#include "common/config_wrapper.h"
-#include "utils/yaml.hpp"
+#include "config_interface.h"
 
-class YamlCfg : public ConfigWrapper
+class YamlCfg : public ConfigInterface
 {
 public:
     YamlCfg() = default;
     ~YamlCfg() = default;
 
-    bool loadCfgFile(const std::string &cfgPath);
-    bool setSavePath(const std::string &cfgPath);
-
-    bool getValue(const std::string &key, std::string &value) override;
-    bool setValue(const std::string &key, const std::string &value) override;
-
-private:
-    std::string m_savePath_;
-    YAML::Node m_yamlNode_;
+    bool loadCfgFile(const std::string &cfgPath) override;
+    bool saveCurCfg(const std::string &cfgPath) override;
+    
 };
 
 

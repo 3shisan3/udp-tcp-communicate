@@ -5,10 +5,6 @@
 namespace communicate
 {
 
-int SocketWrapper::subscribe(const char *topic, SubscribebBase *pSubscribe)
-{
-    return 0;
-}
 
 
 

@@ -35,6 +35,7 @@ include_directories(
 
 # 添加基础模板源代码文件  
 file(GLOB_RECURSE SOURCES 
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/api/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/*.cpp
 )
 

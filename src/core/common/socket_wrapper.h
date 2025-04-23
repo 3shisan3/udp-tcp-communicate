@@ -20,7 +20,6 @@ Version history
 #include <string>
 
 #include "communicate_api.h"
-#include "serialize_wrapper.h"
 #include "utils/singleton.h"
 
 namespace communicate
@@ -38,13 +37,11 @@ public:
     virtual int sendMessage(const char *topic, void *pData) = 0;
 
     // 订阅消息
-    int subscribe(const char *topic, SubscribebBase *pSubscribe);
+    int subscribe(SubscribebBase *pSubscribe);
 
 
 protected:
-    std::unique_ptr<SerializeWrapper> m_serializer;
-
-    std::map<std::string, SubscribebBase *> m_topicDealFunc;
+    std::map<std::string, SubscribebBase *> m_addrDealFunc;
 
 private:
     std::shared_ptr<SocketWrapper> m_communicateImp_;

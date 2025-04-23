@@ -24,3 +24,7 @@ msg_manager_list:
 
 
 # 其他配置(可选)
+# 使用的通信协议
+protocol: "udp"                 # 可选值：udp tcp 
+# 发送分包限制字节
+send_limit: 1024
