@@ -42,7 +42,7 @@ public:
                         std::function<std::vector<char>()> data_generator) override;
     int removePeriodicTask(int task_id) override;
 
-    int addPeriodicSendTask(const char *addr, int port, void *pData, int rate);
+    int addPeriodicSendTask(const char *addr, int port, void *pData, size_t size, int rate);
     int Subscribe(const char *addr, int port, communicate::SubscribebBase *pSubscribe);
 
 private:

@@ -58,7 +58,7 @@ public:
     int initialize() override;
     bool send(const std::string &dest_addr, int dest_port,
               const void *data, size_t size) override;
-    int receiveMessage(char *addr, int port, communicate::SubscribebBase *sub) override;
+    int receiveMessage(const char *addr, int port, communicate::SubscribebBase *sub) override;
     void shutdown() override;
 
 protected:

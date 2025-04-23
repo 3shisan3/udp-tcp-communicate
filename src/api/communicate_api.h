@@ -56,16 +56,16 @@ int Destroy();
  * @param pData         发送的数据
  * @return
  */
-int SendMessage(const char *addr, int port, void *pData);
+int SendMessage(const char *addr, int port, void *pData, size_t size);
 
 /**
- * @brief 添加周期发送任务
+ * @brief 添加周期发送任务(更高级周期生成pData，暂不实现)
  * @param addr          发送的目标
  * @param pData         发送的数据
  * @param rate          发送的频率（HZ)
  * @return
  */
-int addPeriodicSendTask(const char *addr, int port, void *pData, int rate);
+int addPeriodicSendTask(const char *addr, int port, void *pData, size_t size, int rate);
 
 /**
  * @brief 订阅消息

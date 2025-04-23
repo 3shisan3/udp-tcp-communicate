@@ -32,13 +32,13 @@ public:
 
     int initialize();
 
-
-protected:
-    // std::map<std::string, SubscribebBase *> m_addrDealFunc;
+    CommunicateInterface &getCommunicateImp()
+    {
+        return *m_communicateImp_;
+    }
 
 private:
-    std::shared_ptr<CommunicateInterface> m_communicateImp_;
-    
+    std::unique_ptr<CommunicateInterface> m_communicateImp_;
 };
 
 

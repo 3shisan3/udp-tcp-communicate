@@ -33,7 +33,7 @@ public:
     // 发送消息
     virtual bool send(const std::string& dest_addr, int dest_port, const void* data, size_t size) = 0;
     // 接收消息
-    virtual int receiveMessage(char* addr, int port, communicate::SubscribebBase *sub) = 0;
+    virtual int receiveMessage(const char* addr, int port, communicate::SubscribebBase *sub) = 0;
     // 销毁/停止
     virtual void shutdown() = 0;
 
@@ -43,15 +43,11 @@ public:
         // 默认实现为同步发送
         return send(dest_addr, dest_port, data, size);
     }
-
-    virtual int addPeriodicTask(int interval_ms,
-                                const std::string &dest_addr,
-                                int dest_port,
-                                std::function<std::vector<char>()> data_generator)
+    // 周期发送固定数据
+    virtual int addPeriodicSendTask(const char *addr, int port, void *pData, size_t size, int rate)
     {
         return -1; // 默认不支持
     }
-
     virtual int removePeriodicTask(int task_id)
     {
         return -1; // 默认不支持
@@ -62,6 +58,16 @@ public:
     static std::unique_ptr<CommunicateInterface> Create()
     {
         return std::make_unique<T>();
+    }
+
+protected:
+    // 暂不使用功能
+    virtual int addPeriodicTask(int interval_ms,
+        const std::string &dest_addr,
+        int dest_port,
+        std::function<std::vector<char>()> data_generator)
+    {
+        return -1; // 默认不支持
     }
 };
 

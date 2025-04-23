@@ -194,7 +194,7 @@ private:
         memcpy(msg_data.get(), buffer, recv_len);
 
         std::string specific_key = createSubKey(src_ip, src_port);
-        std::string any_key = createSubKey("", src_port);
+        std::string any_key = createSubKey("", 0);
 
         if (auto sub = getSubscriber(specific_key))
         {
@@ -307,7 +307,7 @@ bool UdpCommunicateCore::send(const std::string &dest_addr, int dest_port,
     return pimpl_->sendData(dest_addr, dest_port, data, size);
 }
 
-int UdpCommunicateCore::receiveMessage(char *addr, int port, communicate::SubscribebBase *sub)
+int UdpCommunicateCore::receiveMessage(const char *addr, int port, communicate::SubscribebBase *sub)
 {
     std::string addr_str(addr ? addr : "");
     if (!pimpl_->addListeningSocket(addr_str, port))

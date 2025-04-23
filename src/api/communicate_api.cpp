@@ -7,7 +7,6 @@
 namespace communicate
 {
 
-
 int Initialize(const char* cfgPath)
 {
     int ret = 0;
@@ -24,10 +23,37 @@ int Initialize(const char* cfgPath)
 
 int Destroy()
 {
-
+    auto &communicateImp = SingletonTemplate<SocketWrapper>::getSingletonInstance().getCommunicateImp();
+    communicateImp.shutdown();
     return 0;
 }
 
-
-
+int SendMessage(const char* addr, int port, void *pData, size_t size)
+{
+    auto &communicateImp = SingletonTemplate<SocketWrapper>::getSingletonInstance().getCommunicateImp();
+    // 发送数据
+    return communicateImp.send(addr, port, pData, size);
 }
+
+int addPeriodicSendTask(const char* addr, int port, void *pData, size_t size, int rate)
+{
+    auto &communicateImp = SingletonTemplate<SocketWrapper>::getSingletonInstance().getCommunicateImp();
+    // 添加周期发送任务
+    return communicateImp.addPeriodicSendTask(addr, port, pData, size, rate);
+}
+
+int Subscribe(SubscribebBase *pSubscribe)
+{
+    auto &communicateImp = SingletonTemplate<SocketWrapper>::getSingletonInstance().getCommunicateImp();
+    // 订阅消息
+    return communicateImp.receiveMessage(nullptr, 0, pSubscribe);
+}
+
+int Subscribe(const char* addr, int port, SubscribebBase *pSubscribe)
+{
+    auto &communicateImp = SingletonTemplate<SocketWrapper>::getSingletonInstance().getCommunicateImp();
+    // 订阅消息
+    return communicateImp.receiveMessage(addr, port, pSubscribe);
+}
+
+}   // namespace communicate

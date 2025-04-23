@@ -89,9 +89,8 @@ int UdpCommunicateEnhanced::removePeriodicTask(int task_id)
     return -1;
 }
 
-int UdpCommunicateEnhanced::addPeriodicSendTask(const char *addr, int port, void *pData, int rate)
+int UdpCommunicateEnhanced::addPeriodicSendTask(const char *addr, int port, void *pData, size_t size, int rate)
 {
-    size_t size = sizeof(pData); // 注意：实际使用时应根据具体数据结构确定大小
     int interval_ms = 1000 / rate;
 
     return addPeriodicTask(interval_ms, addr, port, [pData, size]()
