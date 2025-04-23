@@ -15,7 +15,57 @@ Version history
 #ifndef COMMUNICATE_INTERFACE_H
 #define COMMUNICATE_INTERFACE_H
 
+#include <functional>
+#include <memory>
+#include <unordered_map>
 
+// 前置声明
+class SubscribebBase;
 
+class CommunicateInterface
+{
+public:
+    virtual ~CommunicateInterface() = default;
+
+    /* **** 基础功能 **** */
+    // 初始化
+    virtual int initialize() = 0;
+    // 发送消息
+    virtual bool send(const std::string& dest_addr, int dest_port, const void* data, size_t size) = 0;
+    // 接收消息
+    virtual int receiveMessage(char* addr, int port, SubscribebBase *sub) = 0;
+    // 销毁/停止
+    virtual void shutdown() = 0;
+
+    /* **** 高级功能接口（可选实现） **** */
+    virtual bool sendAsync(const std::string &dest_addr, int dest_port, const void *data, size_t size)
+    {
+        // 默认实现为同步发送
+        return send(dest_addr, dest_port, data, size);
+    }
+
+    virtual int addPeriodicTask(int interval_ms,
+                                const std::string &dest_addr,
+                                int dest_port,
+                                std::function<std::vector<char>()> data_generator)
+    {
+        return -1; // 默认不支持
+    }
+
+    virtual int removePeriodicTask(int task_id)
+    {
+        return -1; // 默认不支持
+    }
+
+    // 创建工厂函数
+    template <typename T>
+    static std::unique_ptr<CommunicateInterface> Create()
+    {
+        return std::make_unique<T>();
+    }
+
+protected:
+    std::unordered_map<std::string, SubscribebBase *> m_subscribers_; // 指定通道使用的订阅者
+};
 
 #endif // COMMUNICATE_INTERFACE_H

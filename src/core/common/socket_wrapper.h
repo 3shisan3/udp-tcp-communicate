@@ -19,7 +19,7 @@ Version history
 #include <memory>
 #include <string>
 
-
+#include "protocol/communicate_interface.h"
 #include "utils/singleton.h"
 
 namespace communicate
@@ -37,7 +37,7 @@ protected:
     // std::map<std::string, SubscribebBase *> m_addrDealFunc;
 
 private:
-    // std::shared_ptr<SocketWrapper> m_communicateImp_;
+    std::shared_ptr<CommunicateInterface> m_communicateImp_;
     
 };
 

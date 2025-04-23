@@ -59,6 +59,19 @@ public:
         return appendToListImpl(key, value);
     }
 
+    // 配置文件中使用组合元素
+    struct CommInfo
+    {
+        std::string ID;
+        std::string IP;
+        int Port;
+    };
+    struct MsgConfig
+    {
+        std::string ID;
+        int send_interval;
+    };
+
 protected:
     // 基础类型实现
     virtual bool getValueImpl(const std::string &key, int& value) = 0;
@@ -72,18 +85,6 @@ protected:
     virtual bool setValueImpl(const std::string &key, const bool& value) = 0;
     virtual bool setValueImpl(const std::string &key, const std::string& value) = 0;
     // 根据需要添加更多类型的重载
-
-    struct CommInfo
-    {
-        std::string ID;
-        std::string IP;
-        int Port;
-    };
-    struct MsgConfig
-    {
-        std::string ID;
-        int send_interval;
-    };
 
     // 列表操作实现
     virtual bool getListImpl(const std::string &key, std::vector<CommInfo>& list) = 0;

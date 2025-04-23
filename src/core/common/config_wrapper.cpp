@@ -3,8 +3,8 @@
 #include <fstream>
 #include <sstream>
 
-#include "config/json_cfg.h"
-#include "config/yaml_cfg.h"
+#include "config/json/json_cfg.h"
+#include "config/yaml/yaml_cfg.h"
 #include "utils/json.hpp"
 #include "utils/yaml.hpp"
 

@@ -21,7 +21,7 @@ Version history
 namespace communicate
 {
 
-/* 消息基类，使用时继承重载其中消息处理函数进行解析 */
+/* 消息抽象基类，使用时继承重载其中消息处理函数进行解析 */
 class SubscribebBase
 {
 public:
@@ -52,17 +52,27 @@ int Destroy();
 
 /**
  * @brief 发送数据
+ * @param addr          发送的目标
  * @param pData         发送的数据
  * @return
  */
-int SendMessage(void* pData);
+int SendMessage(const char *addr, int port, void *pData);
+
+/**
+ * @brief 添加周期发送任务
+ * @param addr          发送的目标
+ * @param pData         发送的数据
+ * @param rate          发送的频率（HZ)
+ * @return
+ */
+int addPeriodicSendTask(const char *addr, int port, void *pData, int rate);
 
 /**
  * @brief 订阅消息
  * @param pSubscribe    接收消息的处理函数
  * @return
  */
-int Subscribe(SubscribebBase* pSubscribe);
+int Subscribe(SubscribebBase *pSubscribe);
 
 /**
  * @brief 订阅消息
@@ -70,7 +80,7 @@ int Subscribe(SubscribebBase* pSubscribe);
  * @param pSubscribe    接收消息的处理函数
  * @return
  */
-int Subscribe(const char *addr, SubscribebBase* pSubscribe);
+int Subscribe(const char *addr, int port, SubscribebBase *pSubscribe);
 
 
 }

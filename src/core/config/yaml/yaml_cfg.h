@@ -15,7 +15,7 @@ Version history
 #ifndef YAML_CFG_H_
 #define YAML_CFG_H_
 
-#include "config_interface.h"
+#include "../config_interface.h"
 
 #include "utils/yaml.hpp"
 
