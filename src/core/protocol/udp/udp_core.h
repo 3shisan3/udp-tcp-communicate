@@ -18,19 +18,48 @@ Version history
 #include "../communicate_interface.h"
 
 #include <memory>
+#include <string>
+#include <unordered_map>
+#include <vector>
+#include <thread>
+#include <mutex>
+#include <atomic>
 
-class UdpCore : public CommunicateInterface
+// 平台相关定义
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+    typedef SOCKET SocketType;
+#else
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <poll.h>
+    typedef int SocketType;
+#define INVALID_SOCKET (-1)
+#define SOCKET_ERROR (-1)
+#endif
+
+/**
+ * @brief UDP核心通信类
+ */
+class UdpCommunicateCore : public CommunicateInterface
 {
 public:
-    UdpCore();
-    ~UdpCore() override;
+    UdpCommunicateCore();
+    virtual ~UdpCommunicateCore();
 
-    // 实现基类接口
+    // 禁止拷贝
+    UdpCommunicateCore(const UdpCommunicateCore &) = delete;
+    UdpCommunicateCore &operator=(const UdpCommunicateCore &) = delete;
+
     int initialize() override;
-    void shutdown() override;
     bool send(const std::string &dest_addr, int dest_port,
               const void *data, size_t size) override;
-    int receiveMessage(char* addr, int port, SubscribebBase *sub) override;
+    int receiveMessage(char *addr, int port, communicate::SubscribebBase *sub) override;
+    void shutdown() override;
 
 protected:
     // 配置参数结构体
@@ -41,10 +70,8 @@ protected:
         int max_packet_size = 1024; // 最大包大小
     } m_config;
 
-private:
-    // PIMPL模式隐藏实现细节
     class Impl;
-    std::unique_ptr<Impl> impl_;
+    std::unique_ptr<Impl> pimpl_;
 };
 
 #endif // UDP_CORE_H_

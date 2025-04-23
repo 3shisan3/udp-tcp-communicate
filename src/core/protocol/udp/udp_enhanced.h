@@ -21,59 +21,49 @@ Version history
 
 #include "udp_core.h"
 
-
+#include <functional>
+#include <unordered_map>
 #include <atomic>
-#include <chrono>
-#include <string>
-#include <vector>
+#include <mutex>
+#include <thread>
+#include <cstring>
 
-class UdpEnhanced : public UdpCore
+class UdpCommunicateEnhanced : public UdpCommunicateCore
 {
 public:
-    /// 数据处理模式
-    enum class ProcessingMode
-    {
-        EventDriven, // 事件驱动（回调线程直接处理）
-        ThreadPool   // 线程池模式
-    };
+    UdpCommunicateEnhanced();
+    ~UdpCommunicateEnhanced() override;
 
-    /// 周期任务结构
-    struct PeriodicTask
-    {
-        std::string dest_addr;
-        int dest_port;
-        std::function<std::vector<char>()> data_generator;
-        int interval_ms;
-        std::atomic<bool> is_running{false};
-        std::chrono::steady_clock::time_point last_send_time;
-    };
-
-    UdpEnhanced(ProcessingMode mode = ProcessingMode::ThreadPool,
-                int thread_pool_size = 4);
-    ~UdpEnhanced() override;
-
-    // 实现高级接口
     bool sendAsync(const std::string &dest_addr, int dest_port,
                    const void *data, size_t size) override;
+    int addPeriodicTask(int interval_ms,
+                        const std::string &dest_addr,
+                        int dest_port,
+                        std::function<std::vector<char>()> data_generator) override;
+    int removePeriodicTask(int task_id) override;
 
-    int addPeriodicTask(
-        int interval_ms,
-        const std::string &dest_addr,
-        int dest_port,
-        std::function<std::vector<char>()> data_generator) override;
-
-    bool removePeriodicTask(int task_id) override;
-
-    // 扩展功能
-    void addAddressHandler(
-        const std::string &addr,
-        std::function<void(const char *data, size_t size)> handler);
-
-    void setProcessingMode(ProcessingMode mode);
+    int addPeriodicSendTask(const char *addr, int port, void *pData, int rate);
+    int Subscribe(const char *addr, int port, communicate::SubscribebBase *pSubscribe);
 
 private:
-    class Impl;
-    std::unique_ptr<Impl> impl_;
+    struct PeriodicTask
+    {
+        std::atomic<bool> running{false};
+        std::thread thread;
+
+        PeriodicTask() = default;
+
+        PeriodicTask(PeriodicTask &&other) noexcept
+            : running(other.running.load()),
+              thread(std::move(other.thread)) {}
+
+        PeriodicTask(bool running, std::thread &&t)
+            : running(running), thread(std::move(t)) {}
+    };
+
+    std::atomic<int> next_task_id_{0};
+    std::mutex task_mutex_;
+    std::unordered_map<int, PeriodicTask> periodic_tasks_;
 };
 
 #endif // UDP_ENHANCED_H_

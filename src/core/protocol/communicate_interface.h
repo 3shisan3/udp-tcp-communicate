@@ -17,10 +17,10 @@ Version history
 
 #include <functional>
 #include <memory>
+#include <string>
 #include <unordered_map>
 
-// 前置声明
-class SubscribebBase;
+#include "communicate_api.h"
 
 class CommunicateInterface
 {
@@ -33,7 +33,7 @@ public:
     // 发送消息
     virtual bool send(const std::string& dest_addr, int dest_port, const void* data, size_t size) = 0;
     // 接收消息
-    virtual int receiveMessage(char* addr, int port, SubscribebBase *sub) = 0;
+    virtual int receiveMessage(char* addr, int port, communicate::SubscribebBase *sub) = 0;
     // 销毁/停止
     virtual void shutdown() = 0;
 
@@ -63,9 +63,6 @@ public:
     {
         return std::make_unique<T>();
     }
-
-protected:
-    std::unordered_map<std::string, SubscribebBase *> m_subscribersMap_; // 指定通道使用的订阅者
 };
 
 #endif // COMMUNICATE_INTERFACE_H

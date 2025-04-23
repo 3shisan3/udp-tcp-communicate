@@ -27,7 +27,7 @@ class SubscribebBase
 public:
     virtual ~SubscribebBase() = default;
 
-protected:
+public:
     /**
      *  @brief 处理接收到的数据
      *  @param topic   消息的通道名
