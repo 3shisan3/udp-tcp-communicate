@@ -16,63 +16,45 @@
 class UdpCore::Impl
 {
 public:
-    Impl() : sockfd_(-1), running_(false) {}
+    Impl() = default;
+    ~Impl() { stop(); }
 
-    ~Impl()
+    bool start(const std::vector<ConfigInterface::CommInfo> &subscribe_list,
+               const CoreConfig &core_config,
+               const std::unordered_map<std::string, SubscribebBase *> addr_recvDealFunc)
     {
-        stop();
-    }
-
-    bool start(const std::string &local_ip, int local_port, const Config &config)
-    {
-        // 创建socket
-        sockfd_ = socket(AF_INET, SOCK_DGRAM, 0);
-        if (sockfd_ < 0)
-            return false;
-
-        // 设置socket选项
-        struct timeval tv;
-        tv.tv_sec = config.recv_timeout_ms / 1000;
-        tv.tv_usec = (config.recv_timeout_ms % 1000) * 1000;
-        setsockopt(sockfd_, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-
-        tv.tv_sec = config.send_timeout_ms / 1000;
-        tv.tv_usec = (config.send_timeout_ms % 1000) * 1000;
-        setsockopt(sockfd_, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
-
-        // 绑定地址
-        struct sockaddr_in addr;
-        memset(&addr, 0, sizeof(addr));
-        addr.sin_family = AF_INET;
-        addr.sin_addr.s_addr = inet_addr(local_ip.c_str());
-        addr.sin_port = htons(local_port);
-
-        if (bind(sockfd_, (struct sockaddr *)&addr, sizeof(addr)) < 0)
+        config_ = core_config;
+        // 绑定所有订阅端口
+        for (const auto &endpoint : subscribe_list)
         {
-            close(sockfd_);
-            sockfd_ = -1;
-            return false;
+            // 拼接IP和端口
+            std::string target = endpoint.IP + ":" + std::to_string(endpoint.Port);
+            SubscribebBase *dealObj = addr_recvDealFunc.find(target) == addr_recvDealFunc.end() ? addr_recvDealFunc.at("") : addr_recvDealFunc.at(target);
+            if (!bindPort(endpoint.IP, endpoint.Port, core_config, dealObj))
+            {
+                return false;
+            }
         }
 
-        // 启动接收线程
         running_ = true;
-        recv_thread_ = std::thread(&Impl::recvLoop, this, config.max_packet_size);
-
         return true;
     }
 
     void stop()
     {
         running_ = false;
-        if (recv_thread_.joinable())
+
+        for (auto &thread : recv_threads_)
         {
-            recv_thread_.join();
+            if (thread.joinable())
+                thread.join();
         }
-        if (sockfd_ != -1)
+
+        for (int fd : socket_fds_)
         {
-            close(sockfd_);
-            sockfd_ = -1;
+            close(fd);
         }
+        socket_fds_.clear();
     }
 
     bool sendTo(const std::string &dest_addr, int dest_port,
@@ -84,53 +66,83 @@ public:
         dest.sin_addr.s_addr = inet_addr(dest_addr.c_str());
         dest.sin_port = htons(dest_port);
 
-        ssize_t sent = sendto(sockfd_, data, size, 0,
+        ssize_t sent = sendto(socket_fds_[0], data, size, 0,
                               (struct sockaddr *)&dest, sizeof(dest));
         return sent == static_cast<ssize_t>(size);
     }
 
-    void setCallback(ReceiveCallback cb)
+private:
+    bool bindPort(const std::string &ip, int port, const CoreConfig &config, SubscribebBase *dealObj)
     {
-        std::lock_guard<std::mutex> lock(cb_mutex_);
-        callback_ = std::move(cb);
+        int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+        if (sockfd < 0)
+            return false;
+
+        // 设置socket选项
+        struct timeval tv;
+        tv.tv_sec = config.recv_timeout_ms / 1000;
+        tv.tv_usec = (config.recv_timeout_ms % 1000) * 1000;
+        setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+
+        tv.tv_sec = config.send_timeout_ms / 1000;
+        tv.tv_usec = (config.send_timeout_ms % 1000) * 1000;
+        setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+
+        // 绑定地址
+        sockaddr_in addr{};
+        addr.sin_family = AF_INET;
+        addr.sin_addr.s_addr = inet_addr(ip.c_str());
+        addr.sin_port = htons(port);
+
+        if (bind(sockfd, (sockaddr *)&addr, sizeof(addr)))
+        {
+            close(sockfd);
+            return false;
+        }
+
+        socket_fds_.push_back(sockfd);
+
+        // 为每个socket启动接收线程
+        recv_threads_.emplace_back([this, sockfd, dealObj]() {
+            receiveLoop(sockfd, dealObj);
+        });
+
+        return true;
     }
 
-private:
-    void recvLoop(int max_packet_size)
+    void receiveLoop(int sockfd, SubscribebBase *dealObj)
     {
-        std::vector<char> buffer(max_packet_size);
-        struct sockaddr_in src_addr;
-        socklen_t addr_len = sizeof(src_addr);
+        std::vector<char> buffer(config_.max_packet_size);
 
         while (running_)
         {
-            ssize_t recv_len = recvfrom(sockfd_, buffer.data(), buffer.size(), 0,
-                                        (struct sockaddr *)&src_addr, &addr_len);
+            sockaddr_in src_addr{};
+            socklen_t addr_len = sizeof(src_addr);
 
-            if (recv_len <= 0)
+            ssize_t recv_len = recvfrom(
+                sockfd, buffer.data(), buffer.size(), 0,
+                (sockaddr *)&src_addr, &addr_len);
+
+            if (recv_len > 0)
             {
-                if (errno == EAGAIN || errno == EWOULDBLOCK)
-                    continue;
-                break; // 发生错误
-            }
-
-            std::string src_ip = inet_ntoa(src_addr.sin_addr);
-            int src_port = ntohs(src_addr.sin_port);
-
-            // 调用回调
-            std::lock_guard<std::mutex> lock(cb_mutex_);
-            if (callback_)
-            {
-                callback_(src_ip, src_port, buffer.data(), recv_len);
+                std::lock_guard<std::mutex> lock(callback_mutex_);
+                if (dealObj)
+                {
+                    callback_(
+                        inet_ntoa(src_addr.sin_addr),
+                        ntohs(src_addr.sin_port),
+                        buffer.data(),
+                        recv_len);
+                }
             }
         }
     }
 
-    int sockfd_ = -1;
-    std::atomic<bool> running_;
-    std::thread recv_thread_;
-    ReceiveCallback callback_;
-    std::mutex cb_mutex_;
+    CoreConfig config_;
+    std::atomic<bool> running_{false};
+    std::vector<int> socket_fds_;
+    std::vector<std::thread> recv_threads_;
+    std::mutex callback_mutex_;
 };
 
 // UdpCore成员函数实现
@@ -139,7 +151,21 @@ UdpCore::~UdpCore() = default;
 
 int UdpCore::initialize()
 {
+    // 获取配置文件实例
+    auto &cfg = SingletonTemplate<ConfigWrapper>::getSingletonInstance().getCfgInstance();
+    // 获得一些参数配置项
+    m_config.max_packet_size = cfg.getValue("max_packet_size", 1024);
+    m_config.recv_timeout_ms = cfg.getValue("recv_timeout_ms", 100);
+    m_config.send_timeout_ms = cfg.getValue("send_timeout_ms", 100);
+    // 获得订阅端口列表
+    auto subscribe_list = cfg.getList<ConfigInterface::CommInfo>("subscribe_list");
+    // 获得发送对象列表
+    auto send_list = cfg.getList<ConfigInterface::CommInfo>("send_list");
 
+    if (impl_->start(subscribe_list, m_config))
+    {
+
+    }
     // return impl_->start(local_ip, local_port, config_);
     return 0;
 }
@@ -155,12 +181,7 @@ bool UdpCore::send(const std::string &dest_addr, int dest_port,
     return impl_->sendTo(dest_addr, dest_port, data, size);
 }
 
-void UdpCore::setReceiveCallback(ReceiveCallback callback)
-{
-    impl_->setCallback(std::move(callback));
-}
-
-void UdpCore::setConfig(const Config &config)
-{
-    config_ = config;
-}
+// void UdpCore::setReceiveCallback(ReceiveCallback callback)
+// {
+//     impl_->setCallback(std::move(callback));
+// }

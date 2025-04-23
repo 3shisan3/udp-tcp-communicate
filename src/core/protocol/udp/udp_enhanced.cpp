@@ -225,8 +225,8 @@ UdpEnhanced::UdpEnhanced(ProcessingMode mode, int thread_pool_size)
     : impl_(std::make_unique<Impl>(mode, thread_pool_size))
 {
     // 设置UdpCore的回调
-    setReceiveCallback([this](auto &&...args)
-                       { impl_->handleReceive(std::forward<decltype(args)>(args)...); });
+    // setReceiveCallback([this](auto &&...args)
+    //                    { impl_->handleReceive(std::forward<decltype(args)>(args)...); });
 }
 
 UdpEnhanced::~UdpEnhanced() = default;

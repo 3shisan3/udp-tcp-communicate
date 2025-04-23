@@ -22,14 +22,6 @@ Version history
 class UdpCore : public CommunicateInterface
 {
 public:
-    /// 配置参数结构体
-    struct Config
-    {
-        int recv_timeout_ms = 100;  // 接收超时(毫秒)
-        int send_timeout_ms = 100;  // 发送超时(毫秒)
-        int max_packet_size = 1024; // 最大包大小
-    };
-
     UdpCore();
     ~UdpCore() override;
 
@@ -38,13 +30,16 @@ public:
     void shutdown() override;
     bool send(const std::string &dest_addr, int dest_port,
               const void *data, size_t size) override;
-    void setReceiveCallback(ReceiveCallback callback) override;
+    int receiveMessage(char* addr, int port, SubscribebBase *sub) override;
 
-    /**
-     * @brief 设置核心配置
-     * @note 必须在initialize前调用
-     */
-    void setConfig(const Config &config);
+protected:
+    // 配置参数结构体
+    struct CoreConfig
+    {
+        int recv_timeout_ms = 100;  // 接收超时(毫秒)
+        int send_timeout_ms = 100;  // 发送超时(毫秒)
+        int max_packet_size = 1024; // 最大包大小
+    } m_config;
 
 private:
     // PIMPL模式隐藏实现细节

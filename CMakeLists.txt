@@ -13,6 +13,7 @@ set(CMAKE_INSTALL_PREFIX "${USER_HOME_DIR}/program_running/${PROJECT_NAME}")
 #设置构建中用到的变量
 set(PROJECT_ROOT_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 set(PROJECT_HEADER_DIR "")
+set(DEPEND_LIBS "")
 
 # 设置构建选项前提
 option(DUAL_ENDPOINT_MODE "部署在双端（接收/发送）使用" ON)
@@ -72,6 +73,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 # 链接依赖库
 target_link_libraries(${PROJECT_NAME} PRIVATE 
     yaml-cpp
+    ${DEPEND_LIBS}
 )
 # 如果是双端模式，添加额外的链接库
 if(DUAL_ENDPOINT_MODE)

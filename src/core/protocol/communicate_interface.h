@@ -65,7 +65,7 @@ public:
     }
 
 protected:
-    std::unordered_map<std::string, SubscribebBase *> m_subscribers_; // 指定通道使用的订阅者
+    std::unordered_map<std::string, SubscribebBase *> m_subscribersMap_; // 指定通道使用的订阅者
 };
 
 #endif // COMMUNICATE_INTERFACE_H
