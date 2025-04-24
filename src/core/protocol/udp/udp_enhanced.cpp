@@ -37,12 +37,17 @@ int UdpCommunicateEnhanced::addPeriodicTask(
     int interval_ms,
     const std::string &dest_addr,
     int dest_port,
+    int appoint_task_id,
     std::function<std::vector<char>()> data_generator)
 {
 
     std::lock_guard<std::mutex> lock(task_mutex_);
 
     int task_id = next_task_id_++;
+    if (appoint_task_id != -1)
+    {
+        task_map_[appoint_task_id] = task_id;
+    }
     periodic_tasks_.emplace(
         task_id,
         PeriodicTask{
@@ -72,10 +77,11 @@ int UdpCommunicateEnhanced::addPeriodicTask(
     return task_id;
 }
 
-int UdpCommunicateEnhanced::removePeriodicTask(int task_id)
+int UdpCommunicateEnhanced::removePeriodicTask(int appoint_task_id)
 {
     std::lock_guard<std::mutex> lock(task_mutex_);
 
+    int task_id = task_map_[appoint_task_id];
     if (auto it = periodic_tasks_.find(task_id); it != periodic_tasks_.end())
     {
         it->second.running = false;
@@ -89,11 +95,11 @@ int UdpCommunicateEnhanced::removePeriodicTask(int task_id)
     return -1;
 }
 
-int UdpCommunicateEnhanced::addPeriodicSendTask(const char *addr, int port, void *pData, size_t size, int rate)
+int UdpCommunicateEnhanced::addPeriodicSendTask(const char *addr, int port, void *pData, size_t size, int rate, int task_id)
 {
     int interval_ms = 1000 / rate;
 
-    return addPeriodicTask(interval_ms, addr, port, [pData, size]()
+    return addPeriodicTask(interval_ms, addr, port, task_id, [pData, size]()
                            {
         std::vector<char> buffer(size);
         memcpy(buffer.data(), pData, size);

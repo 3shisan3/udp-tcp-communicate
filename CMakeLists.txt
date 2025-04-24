@@ -16,7 +16,7 @@ set(PROJECT_HEADER_DIR "")
 set(DEPEND_LIBS "")
 
 # 设置构建选项前提
-option(DUAL_ENDPOINT_MODE "部署在双端（接收/发送）使用" ON)
+option(DUAL_ENDPOINT_MODE "部署在双端（接收/发送）使用" OFF)
 option(FETCHCONTENT_MANAGE_DEPS  "使用 FetchContent 来管理项目依赖" OFF)
 
 # 设置C++标准为

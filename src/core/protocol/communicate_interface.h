@@ -44,7 +44,7 @@ public:
         return send(dest_addr, dest_port, data, size);
     }
     // 周期发送固定数据
-    virtual int addPeriodicSendTask(const char *addr, int port, void *pData, size_t size, int rate)
+    virtual int addPeriodicSendTask(const char *addr, int port, void *pData, size_t size, int rate, int task_id = -1)
     {
         return -1; // 默认不支持
     }
@@ -65,6 +65,7 @@ protected:
     virtual int addPeriodicTask(int interval_ms,
         const std::string &dest_addr,
         int dest_port,
+        int appoint_task_id,
         std::function<std::vector<char>()> data_generator)
     {
         return -1; // 默认不支持

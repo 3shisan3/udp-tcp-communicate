@@ -62,10 +62,20 @@ int SendMessage(const char *addr, int port, void *pData, size_t size);
  * @brief 添加周期发送任务(更高级周期生成pData，暂不实现)
  * @param addr          发送的目标
  * @param pData         发送的数据
+ * @param size          发送的数据大小
  * @param rate          发送的频率（HZ)
+ * @param task_id       任务ID(主要用于删除任务)
+ *                      -1表示不指定任务ID，系统自动分配
  * @return
  */
-int addPeriodicSendTask(const char *addr, int port, void *pData, size_t size, int rate);
+int addPeriodicSendTask(const char *addr, int port, void *pData, size_t size, int rate, int task_id = -1);
+
+/**
+ * @brief 删除周期发送任务(添加时未指定，不支持删除)
+ * @param task_id       任务ID
+ * @return
+ */
+int removePeriodicSendTask(int task_id);
 
 /**
  * @brief 订阅消息

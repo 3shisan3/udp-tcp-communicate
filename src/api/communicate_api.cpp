@@ -35,11 +35,18 @@ int SendMessage(const char* addr, int port, void *pData, size_t size)
     return communicateImp.send(addr, port, pData, size);
 }
 
-int addPeriodicSendTask(const char* addr, int port, void *pData, size_t size, int rate)
+int addPeriodicSendTask(const char* addr, int port, void *pData, size_t size, int rate, int task_id)
 {
     auto &communicateImp = SingletonTemplate<SocketWrapper>::getSingletonInstance().getCommunicateImp();
     // 添加周期发送任务
-    return communicateImp.addPeriodicSendTask(addr, port, pData, size, rate);
+    return communicateImp.addPeriodicSendTask(addr, port, pData, size, rate, task_id);
+}
+
+int removePeriodicTask(int task_id)
+{
+    auto &communicateImp = SingletonTemplate<SocketWrapper>::getSingletonInstance().getCommunicateImp();
+    // 删除周期发送任务
+    return communicateImp.removePeriodicTask(task_id);
 }
 
 int Subscribe(SubscribebBase *pSubscribe)
