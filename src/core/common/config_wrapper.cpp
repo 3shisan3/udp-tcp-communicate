@@ -24,7 +24,7 @@ ConfigWrapper::FileType ConfigWrapper::identifyFileType(const std::string &cfgPa
     std::ifstream file(cfgPath);
     if (!file.is_open())
     {
-        return FileType::FILE_TYPE_UNKNOWN;
+        return FileType::FILE_TYPE_NONSUPPORT;
     }
     std::ostringstream buffer;
     buffer << file.rdbuf();
@@ -48,7 +48,7 @@ ConfigWrapper::FileType ConfigWrapper::identifyFileType(const std::string &cfgPa
         // Not YAML, continue checking
     }
 
-    return FileType::FILE_TYPE_UNKNOWN;
+    return FileType::FILE_TYPE_NONSUPPORT;
 }
 
 int ConfigWrapper::loadCfgFile(const std::string &cfgPath)

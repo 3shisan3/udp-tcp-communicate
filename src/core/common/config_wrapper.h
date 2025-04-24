@@ -39,7 +39,7 @@ protected:
     {
         FILE_TYPE_JSON = 0,
         FILE_TYPE_YAML,
-        FILE_TYPE_UNKNOWN
+        FILE_TYPE_NONSUPPORT
     };
     // 识别文件类型
     FileType identifyFileType(const std::string &cfgPath);

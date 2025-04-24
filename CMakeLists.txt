@@ -4,11 +4,11 @@ cmake_minimum_required(VERSION 3.11)
 # 设置项目名称  
 project(tcp_udp_communicate)
 
-# 在 Unix-like 系统中使用 $HOME 环境变量  
-execute_process(COMMAND sh -c "echo $HOME" OUTPUT_VARIABLE USER_HOME_DIR)  
-string(STRIP ${USER_HOME_DIR} USER_HOME_DIR)  
+# # 在 Unix-like 系统中使用 $HOME 环境变量  
+# execute_process(COMMAND sh -c "echo $HOME" OUTPUT_VARIABLE USER_HOME_DIR)  
+# string(STRIP ${USER_HOME_DIR} USER_HOME_DIR)  
 
-set(CMAKE_INSTALL_PREFIX "${USER_HOME_DIR}/program_running/${PROJECT_NAME}")
+# set(CMAKE_INSTALL_PREFIX "${USER_HOME_DIR}/program_running/${PROJECT_NAME}")
 
 #设置构建中用到的变量
 set(PROJECT_ROOT_PATH ${CMAKE_CURRENT_SOURCE_DIR})
@@ -23,6 +23,7 @@ option(FETCHCONTENT_MANAGE_DEPS  "使用 FetchContent 来管理项目依赖" OFF
 set(CMAKE_CXX_STANDARD 17)
 
 # 导入配置
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/platform.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/thirddepend.cmake)
 
 # 添加编译输出目录
