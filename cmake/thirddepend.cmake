@@ -34,6 +34,7 @@ if (FETCHCONTENT_MANAGE_DEPS)
   # )
   # FetchContent_MakeAvailable(zlib)
 else()
+  set(YAML_BUILD_SHARED_LIBS OFF)
   add_subdirectory(${PROJECT_ROOT_PATH}/thirdparty/yaml-cpp)
 
   list(APPEND PROJECT_HEADER_DIR ${PROJECT_ROOT_PATH}/thirdparty/yaml-cpp/include)
