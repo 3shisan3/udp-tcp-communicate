@@ -44,13 +44,17 @@ public:
         return send(dest_addr, dest_port, data, size);
     }
     // 周期发送固定数据
-    virtual int addPeriodicSendTask(const char *addr, int port, void *pData, size_t size, int rate, int task_id = -1)
+    virtual int addPeriodicSendTask(const char *addr, int port, const void *pData, size_t size, int rate, int task_id = -1)
     {
         return -1; // 默认不支持
     }
     virtual int removePeriodicTask(int task_id)
     {
         return -1; // 默认不支持
+    }
+    virtual void setSendPort(int port)
+    {
+        // 默认实现不设置发送端口
     }
 
     // 创建工厂函数

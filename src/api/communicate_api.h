@@ -92,6 +92,8 @@ int Subscribe(SubscribebBase *pSubscribe);
  */
 int Subscribe(const char *addr, int port, SubscribebBase *pSubscribe);
 
+// 设置发送使用的端口（非必要使用）
+void setSendPort(int port);
 
 }
 

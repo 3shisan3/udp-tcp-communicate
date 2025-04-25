@@ -13,7 +13,7 @@
 class UdpCommunicateCore::Impl
 {
 public:
-    Impl() : is_running_(false)
+    Impl(CoreConfig& config) : is_running_(false), config_(config)
     {
 #ifdef _WIN32
         WSADATA wsaData;
@@ -81,6 +81,53 @@ public:
         if (sockfd == INVALID_SOCKET)
         {
             return false;
+        }
+
+        // 强制设置 SO_REUSEADDR，允许端口复用
+        int opt = 1;
+        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR,
+                       reinterpret_cast<const char *>(&opt), sizeof(opt)) == SOCKET_ERROR)
+        {
+#ifdef _WIN32
+            closesocket(sockfd);
+#else
+            close(sockfd);
+#endif
+            return false;
+        }
+
+        // 设置发送超时
+#ifdef _WIN32
+        DWORD send_timeout = config_.send_timeout_ms;
+        setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, (const char *)&send_timeout, sizeof(send_timeout));
+#else
+        struct timeval tv;
+        tv.tv_sec = config_.send_timeout_ms / 1000;
+        tv.tv_usec = (config_.send_timeout_ms % 1000) * 1000;
+        setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, (const char *)&tv, sizeof(tv));
+#endif
+
+        // 如果配置了源端口，则绑定
+        if (config_.source_port > 0)
+        {
+            sockaddr_in local_addr = {};
+            local_addr.sin_family = AF_INET;
+            local_addr.sin_port = htons(config_.source_port);
+            local_addr.sin_addr.s_addr = INADDR_ANY;
+
+            if (bind(sockfd, reinterpret_cast<const sockaddr *>(&local_addr),
+                     sizeof(local_addr)) == SOCKET_ERROR)
+            {
+#ifdef _WIN32
+                int error = WSAGetLastError();
+                std::cerr << "Bind failed with error: " << error << std::endl;
+                closesocket(sockfd);
+#else
+                std::cerr << "Bind failed: " << strerror(errno) << std::endl;
+                close(sockfd);
+#endif
+                return false;
+            }
         }
 
         sockaddr_in dest_addr_in = {};
@@ -186,13 +233,13 @@ private:
 
     void processIncomingData(SocketType sockfd)
     {
-        constexpr int BUFFER_SIZE = 65536;
-        char buffer[BUFFER_SIZE];
+        // 使用配置的最大包大小
+        std::vector<char> buffer(config_.max_packet_size);
 
         sockaddr_in src_addr = {};
         socklen_t addr_len = sizeof(src_addr);
 
-        ssize_t recv_len = recvfrom(sockfd, buffer, BUFFER_SIZE, 0,
+        ssize_t recv_len = recvfrom(sockfd, buffer.data(), config_.max_packet_size, 0,
                                     reinterpret_cast<sockaddr *>(&src_addr), &addr_len);
         if (recv_len <= 0)
             return;
@@ -202,7 +249,7 @@ private:
         int src_port = ntohs(src_addr.sin_port);
 
         std::shared_ptr<void> msg_data(malloc(recv_len), free);
-        memcpy(msg_data.get(), buffer, recv_len);
+        memcpy(msg_data.get(), buffer.data(), recv_len);
 
         std::string specific_key = createSubKey(src_ip, src_port);
         std::string any_key = createSubKey("", 0);
@@ -277,6 +324,7 @@ private:
     }
 
     std::atomic<bool> is_running_;
+    CoreConfig& config_;
     std::thread receiver_thread_;
     std::mutex send_mutex_;
     std::mutex sub_mutex_;
@@ -286,7 +334,7 @@ private:
 };
 
 // UdpCommunicateCore 方法实现
-UdpCommunicateCore::UdpCommunicateCore() : pimpl_(std::make_unique<Impl>()) {}
+UdpCommunicateCore::UdpCommunicateCore() : pimpl_(std::make_unique<Impl>(m_config)) {}
 UdpCommunicateCore::~UdpCommunicateCore() = default;
 
 int UdpCommunicateCore::initialize()
@@ -297,9 +345,9 @@ int UdpCommunicateCore::initialize()
     m_config.max_packet_size = cfg.getValue("max_packet_size", 1024);
     m_config.recv_timeout_ms = cfg.getValue("recv_timeout_ms", 100);
     m_config.send_timeout_ms = cfg.getValue("send_timeout_ms", 100);
+    m_config.source_port = cfg.getValue("source_port", 0);
     // 获得订阅端口列表
     auto subscribe_list = cfg.getList<ConfigInterface::CommInfo>("subscribe_list");
-
     for (const auto &item : subscribe_list)
     {
         if (!pimpl_->addListeningSocket(item.IP, item.Port))
@@ -335,4 +383,9 @@ int UdpCommunicateCore::receiveMessage(const char *addr, int port, communicate::
 void UdpCommunicateCore::shutdown()
 {
     pimpl_->stop();
+}
+
+void UdpCommunicateCore::setSendPort(int port)
+{
+    m_config.source_port = port;
 }

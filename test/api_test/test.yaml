@@ -16,3 +16,4 @@ protocol: "udp"                 # 可选值：udp tcp
 # 发送分包限制字节
 send_limit: 1024
 # 超时选项
+source_port: 6666

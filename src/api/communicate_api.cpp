@@ -67,4 +67,10 @@ int Subscribe(const char* addr, int port, SubscribebBase *pSubscribe)
     return communicateImp.receiveMessage(addr, port, pSubscribe);
 }
 
+void setSendPort(int port)
+{
+    auto &communicateImp = SingletonTemplate<SocketWrapper>::getSingletonInstance().getCommunicateImp();
+    communicateImp.setSendPort(port);
+}
+
 }   // namespace communicate

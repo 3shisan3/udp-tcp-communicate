@@ -33,3 +33,5 @@ max_packet_size: 1024
 # 超时选项
 recv_timeout_ms: 100
 send_timeout_ms: 100
+# 绑定发送源端口(0 为系统自动分配)
+source_port: 0
