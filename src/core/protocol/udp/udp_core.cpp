@@ -86,7 +86,16 @@ public:
         sockaddr_in dest_addr_in = {};
         dest_addr_in.sin_family = AF_INET;
         dest_addr_in.sin_port = htons(dest_port);
-        inet_pton(AF_INET, dest_addr.c_str(), &dest_addr_in.sin_addr);
+
+        if (inet_pton(AF_INET, dest_addr.c_str(), &dest_addr_in.sin_addr) <= 0)
+        {
+#ifdef _WIN32
+            closesocket(sockfd);
+#else
+            close(sockfd);
+#endif
+            return false;
+        }
 
         ssize_t sent_bytes = sendto(sockfd,
                                     reinterpret_cast<const char *>(data),
@@ -94,15 +103,17 @@ public:
                                     0,
                                     reinterpret_cast<const sockaddr *>(&dest_addr_in),
                                     sizeof(dest_addr_in));
+
+        bool success = (sent_bytes == static_cast<ssize_t>(size));
+
 #ifdef _WIN32
         closesocket(sockfd);
 #else
         close(sockfd);
 #endif
 
-        return sent_bytes == static_cast<ssize_t>(size);
+        return success;
     }
-
     void addSubscriber(const std::string &key, communicate::SubscribebBase *sub)
     {
         std::lock_guard<std::mutex> lock(sub_mutex_);

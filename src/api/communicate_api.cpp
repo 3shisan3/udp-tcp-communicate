@@ -32,7 +32,11 @@ int SendMessage(const char* addr, int port, void *pData, size_t size)
 {
     auto &communicateImp = SingletonTemplate<SocketWrapper>::getSingletonInstance().getCommunicateImp();
     // 发送数据
-    return communicateImp.send(addr, port, pData, size);
+    if(!communicateImp.send(addr, port, pData, size))
+    {
+        return -1;
+    }
+    return 0;
 }
 
 int addPeriodicSendTask(const char* addr, int port, void *pData, size_t size, int rate, int task_id)
@@ -42,7 +46,7 @@ int addPeriodicSendTask(const char* addr, int port, void *pData, size_t size, in
     return communicateImp.addPeriodicSendTask(addr, port, pData, size, rate, task_id);
 }
 
-int removePeriodicTask(int task_id)
+int removePeriodicSendTask(int task_id)
 {
     auto &communicateImp = SingletonTemplate<SocketWrapper>::getSingletonInstance().getCommunicateImp();
     // 删除周期发送任务

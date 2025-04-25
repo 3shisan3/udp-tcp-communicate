@@ -18,6 +18,7 @@ set(DEPEND_LIBS "")
 # 设置构建选项前提
 option(DUAL_ENDPOINT_MODE "部署在双端（接收/发送）使用" OFF)
 option(FETCHCONTENT_MANAGE_DEPS  "使用 FetchContent 来管理项目依赖" OFF)
+option(BUILD_TEST "编译测试部分用例"	ON)
 
 # 设置C++标准为
 set(CMAKE_CXX_STANDARD 17)
@@ -27,7 +28,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/platform.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/thirddepend.cmake)
 
 # 添加编译输出目录
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin)
 
 # 添加头文件
 include_directories(
@@ -83,6 +84,11 @@ if(DUAL_ENDPOINT_MODE)
     )
 endif()
 
-
 # 为特定目标添加编译时的宏定义，包括值
-target_compile_definitions(${PROJECT_NAME} PRIVATE PROJECT_NAME="${PROJECT_NAME} ") 
+target_compile_definitions(${PROJECT_NAME} PRIVATE PROJECT_NAME="${PROJECT_NAME} ")
+
+# 测试项目
+if (BUILD_TEST)
+	message(STATUS "build test modules")
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/test/api_test ${CMAKE_BINARY_DIR}/api_test)
+endif()

@@ -29,5 +29,7 @@ msg_manager_list:
 # 使用的通信协议
 protocol: "udp"                 # 可选值：udp tcp 
 # 发送分包限制字节
-send_limit: 1024
+max_packet_size: 1024
 # 超时选项
+recv_timeout_ms: 100
+send_timeout_ms: 100

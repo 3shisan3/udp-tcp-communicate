@@ -68,7 +68,7 @@ int ConfigWrapper::loadCfgFile(const std::string &cfgPath)
     case FileType::FILE_TYPE_YAML:
     {
         m_cfgPointer_ = std::make_unique<YamlCfg>();
-        if (m_cfgPointer_->loadCfgFile(cfgPath) != 0)
+        if (!m_cfgPointer_->loadCfgFile(cfgPath))
         {
             return -1;
         }

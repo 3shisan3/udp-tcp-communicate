@@ -15,9 +15,11 @@ int SocketWrapper::initialize()
     // 获取配置文件描写的通讯协议
     std::string protocol = cfgInstance.getCfgInstance().getValue("protocol", DEFAULT_PROTOCOL);
     
+    int ret = 0;
     if (protocol == "udp")
     {
         m_communicateImp_ = CommunicateInterface::Create<UdpCommunicateEnhanced>();
+        ret = m_communicateImp_->initialize();
     }
     else
     {
@@ -25,7 +27,7 @@ int SocketWrapper::initialize()
         return -1;
     }
 
-    return 0;
+    return ret;
 }
 
 
