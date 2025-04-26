@@ -13,7 +13,8 @@
 class UdpCommunicateCore::Impl
 {
 public:
-    Impl(CoreConfig& config) : is_running_(false), config_(config)
+    Impl(CoreConfig& config) : is_running_(false), config_(config),
+        thread_pool_(std::make_unique<ThreadPoolWrapper>(config.thread_pool_size)) 
     {
 #ifdef _WIN32
         WSADATA wsaData;
@@ -237,6 +238,7 @@ private:
             {
                 if (pollfds[i].revents & POLLIN)
                 {
+                    // recvfrom，getsockname 非线程安全操作，不将整个处理加入线程池
                     processIncomingData(pollfds[i].fd);
                 }
             }
@@ -268,8 +270,9 @@ private:
             inet_ntop(AF_INET, &local_addr.sin_addr, local_ip, INET_ADDRSTRLEN);
             local_port = ntohs(local_addr.sin_port);
         }
-        // 复制数据到消息结构
-        std::shared_ptr<void> msg_data(malloc(recv_len), free);
+
+        // 复制数据到共享内存（避免线程竞争）
+        auto msg_data = std::shared_ptr<void>(malloc(recv_len), free);
         memcpy(msg_data.get(), buffer.data(), recv_len);
 
         // 构建所有可能的匹配键
@@ -283,7 +286,9 @@ private:
                        getSubscriber(wildcard_key) ?:
                        getSubscriber(any_key))
         {
-            sub->handleMsg(msg_data);
+            thread_pool_->enqueue([sub, msg_data] {
+                sub->handleMsg(msg_data);  // 调用订阅者的处理接口
+            });
         }
     }
 
@@ -356,6 +361,7 @@ private:
 
     std::atomic<bool> is_running_;
     CoreConfig& config_;
+    std::unique_ptr<ThreadPoolWrapper> thread_pool_;
     std::thread receiver_thread_;
     std::mutex send_mutex_;
     std::mutex sub_mutex_;
@@ -378,6 +384,7 @@ int UdpCommunicateCore::initialize()
     m_config.recv_timeout_ms = cfg.getValue("recv_timeout_ms", 100);
     m_config.send_timeout_ms = cfg.getValue("send_timeout_ms", 100);
     m_config.source_port = cfg.getValue("source_port", 0);
+    m_config.thread_pool_size = cfg.getValue("thread_pool_size", 3);
     // 获得需要监听的端口列表
     auto listen_list = cfg.getList<ConfigInterface::CommInfo>("listen_list");
     for (const auto &item : listen_list)

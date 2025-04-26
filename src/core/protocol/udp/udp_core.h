@@ -42,6 +42,8 @@ Version history
 #define SOCKET_ERROR (-1)
 #endif
 
+#include "utils/threadpool_wrapper.h"
+
 /**
  * @brief UDP核心通信类
  */
@@ -73,6 +75,7 @@ protected:
         int max_send_packet_size = 1024;    // 最大包大小
         int max_receive_packet_size = 65507;// 最大包大小（IP 层限制（65535 字节） - IP/UDP 头（28 字节）​​ ≈ ​​65507 字节）
         int source_port = 0;                // 发送源端口，0表示系统自动分配
+        size_t thread_pool_size = 3;        // 线程池大小配置
     } m_config;
 
     /* 拓展可实现 发向指定地址，或者指定类型的消息使用固定的端口

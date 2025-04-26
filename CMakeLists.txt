@@ -40,6 +40,7 @@ include_directories(
 file(GLOB_RECURSE SOURCES 
     ${CMAKE_CURRENT_SOURCE_DIR}/src/api/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/*.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/*.cc
 )
 
 # 打印必要信息
