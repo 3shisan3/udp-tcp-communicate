@@ -65,7 +65,7 @@ int main()
     // Create a new message
     std::string msg = "Hello, World!";
     // Receive a message by port
-    if (Subscribe("127.0.0.1", 6666, new TestHandler()))
+    if (SubscribeRemote("127.0.0.1", 6666, new TestHandler()))
     {
         return -1; // Subscribing failed
     }
@@ -75,7 +75,7 @@ int main()
     }
 
     // 测试使用，临时改一下发送使用端口，为系统分配
-    setSendPort(0);
+    SetSendPort(0);
 
     // 创建周期发送任务
     int task_id = 233;
@@ -84,7 +84,7 @@ int main()
     // 使用堆分配数据确保生命周期
     auto periodic_data = std::make_shared<std::string>("Periodic message");
 
-    int ret = addPeriodicSendTask("127.0.0.1", 3322, // 发送到3322端口
+    int ret = AddPeriodicSendTask("127.0.0.1", 3322, // 发送到3322端口
                                   periodic_data->data(),
                                   periodic_data->size(),
                                   rate, task_id);
@@ -104,7 +104,7 @@ int main()
     }
 
     // 删除周期任务
-    if (removePeriodicSendTask(task_id))
+    if (RemovePeriodicSendTask(task_id))
     {
         std::cerr << "删除周期任务失败" << std::endl;
     } else {
@@ -115,7 +115,7 @@ int main()
     std::this_thread::sleep_for(std::chrono::seconds(5));
 
     // 销毁API
-    if (!Destroy()) {
+    if (Destroy()) {
         std::cerr << "API销毁失败" << std::endl;
         return -1;
     }

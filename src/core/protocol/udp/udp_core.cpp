@@ -82,7 +82,6 @@ public:
         {
             return false;
         }
-
         // 强制设置 SO_REUSEADDR，允许端口复用
         int opt = 1;
         if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR,
@@ -95,7 +94,6 @@ public:
 #endif
             return false;
         }
-
         // 设置发送超时
 #ifdef _WIN32
         DWORD send_timeout = config_.send_timeout_ms;
@@ -106,7 +104,6 @@ public:
         tv.tv_usec = (config_.send_timeout_ms % 1000) * 1000;
         setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, (const char *)&tv, sizeof(tv));
 #endif
-
         // 如果配置了源端口，则绑定
         if (config_.source_port > 0)
         {
@@ -129,7 +126,7 @@ public:
                 return false;
             }
         }
-
+        // 初始化目标地址
         sockaddr_in dest_addr_in = {};
         dest_addr_in.sin_family = AF_INET;
         dest_addr_in.sin_port = htons(dest_port);
@@ -143,16 +140,30 @@ public:
 #endif
             return false;
         }
+        // 分片发送逻辑
+        const char *data_ptr = reinterpret_cast<const char *>(data);
+        size_t remaining = size;
+        bool success = true;
+        while (remaining > 0)
+        {
+            size_t chunk_size = (remaining > config_.max_send_packet_size) ? config_.max_send_packet_size : remaining;
 
-        ssize_t sent_bytes = sendto(sockfd,
-                                    reinterpret_cast<const char *>(data),
-                                    static_cast<int>(size),
-                                    0,
-                                    reinterpret_cast<const sockaddr *>(&dest_addr_in),
-                                    sizeof(dest_addr_in));
-
-        bool success = (sent_bytes == static_cast<ssize_t>(size));
-
+            ssize_t sent_bytes = sendto(
+                sockfd,
+                data_ptr,
+                static_cast<int>(chunk_size),
+                0,
+                reinterpret_cast<const sockaddr *>(&dest_addr_in),
+                sizeof(dest_addr_in));
+            if (sent_bytes != static_cast<ssize_t>(chunk_size))
+            {
+                success = false;
+                break;
+            }
+            data_ptr += sent_bytes;
+            remaining -= sent_bytes;
+        }
+        // 关闭socket
 #ifdef _WIN32
         closesocket(sockfd);
 #else
@@ -161,6 +172,7 @@ public:
 
         return success;
     }
+
     void addSubscriber(const std::string &key, communicate::SubscribebBase *sub)
     {
         std::lock_guard<std::mutex> lock(sub_mutex_);
@@ -234,31 +246,42 @@ private:
     void processIncomingData(SocketType sockfd)
     {
         // 使用配置的最大包大小
-        std::vector<char> buffer(config_.max_packet_size);
-
+        std::vector<char> buffer(config_.max_receive_packet_size);
+        // 接收数据（获取发送方信息）
         sockaddr_in src_addr = {};
         socklen_t addr_len = sizeof(src_addr);
-
-        ssize_t recv_len = recvfrom(sockfd, buffer.data(), config_.max_packet_size, 0,
+        ssize_t recv_len = recvfrom(sockfd, buffer.data(), config_.max_receive_packet_size, 0,
                                     reinterpret_cast<sockaddr *>(&src_addr), &addr_len);
         if (recv_len <= 0)
             return;
-
+        // 获取发送方IP和端口
         char src_ip[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, &src_addr.sin_addr, src_ip, INET_ADDRSTRLEN);
         int src_port = ntohs(src_addr.sin_port);
-
+        // 获取本地该消息来源IP和端口
+        sockaddr_in local_addr = {};
+        socklen_t local_addr_len = sizeof(local_addr);
+        char local_ip[INET_ADDRSTRLEN] = {0};
+        int local_port = 0;
+        if (getsockname(sockfd, (sockaddr *)&local_addr, &local_addr_len) == 0)
+        {
+            inet_ntop(AF_INET, &local_addr.sin_addr, local_ip, INET_ADDRSTRLEN);
+            local_port = ntohs(local_addr.sin_port);
+        }
+        // 复制数据到消息结构
         std::shared_ptr<void> msg_data(malloc(recv_len), free);
         memcpy(msg_data.get(), buffer.data(), recv_len);
 
-        std::string specific_key = createSubKey(src_ip, src_port);
-        std::string any_key = createSubKey("", 0);
+        // 构建所有可能的匹配键
+        std::string sender_key = createSubKey(src_ip, src_port);            // 精确发送方
+        std::string local_key = createSubKey(local_ip, local_port);         // 精确本地
+        std::string wildcard_key = createSubKey("localhost", local_port);   // 本地通用匹配前缀+指定端口
+        std::string any_key = createSubKey("", 0);                          // 完全通配
 
-        if (auto sub = getSubscriber(specific_key))
-        {
-            sub->handleMsg(msg_data);
-        }
-        else if (auto sub = getSubscriber(any_key))
+        if (auto sub = getSubscriber(sender_key) ?:
+                       getSubscriber(local_key)  ?:
+                       getSubscriber(wildcard_key) ?:
+                       getSubscriber(any_key))
         {
             sub->handleMsg(msg_data);
         }
@@ -266,21 +289,29 @@ private:
 
     SocketType createAndBindSocket(const std::string &addr, int port)
     {
+        // 1. 创建 UDP Socket
+        // AF_INET: IPv4 地址族
+        // SOCK_DGRAM: UDP 协议
+        // 0: 自动选择协议（UDP 默认是 IPPROTO_UDP）
         SocketType sockfd = socket(AF_INET, SOCK_DGRAM, 0);
         if (sockfd == INVALID_SOCKET)
         {
             return INVALID_SOCKET;
         }
-
+        // 2. 设置 SO_REUSEADDR 选项
+        // 允许地址和端口重用（避免 bind() 失败，特别是在程序崩溃后快速重启时）
         int opt = 1;
         setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR,
                    reinterpret_cast<const char *>(&opt), sizeof(opt));
-
+        // 3. 初始化服务器地址结构
         sockaddr_in serv_addr = {};
-        serv_addr.sin_family = AF_INET;
-        serv_addr.sin_port = htons(port);
+        serv_addr.sin_family = AF_INET;         // IPv4 地址族
+        serv_addr.sin_port = htons(port);       // 端口号（转换为网络字节序）
+        // 4. 设置监听的 IP 地址（设备多网卡的情况）
+        // 如果 addr 为空，则监听所有网卡（INADDR_ANY）
+        // 否则，解析指定的 IP 地址（inet_addr 将点分十进制转换为网络字节序）
         serv_addr.sin_addr.s_addr = addr.empty() ? INADDR_ANY : inet_addr(addr.c_str());
-
+        // 5. 绑定 Socket 到指定的 IP 和端口
         if (bind(sockfd, reinterpret_cast<const sockaddr *>(&serv_addr),
                  sizeof(serv_addr)) == SOCKET_ERROR)
         {
@@ -291,8 +322,8 @@ private:
 #endif
             return INVALID_SOCKET;
         }
-
         // 设置为非阻塞
+        // 这样 recvfrom() 不会阻塞，如果没有数据可读，会立即返回错误（EWOULDBLOCK/EAGAIN）
 #ifdef _WIN32
         u_long mode = 1;
         ioctlsocket(sockfd, FIONBIO, &mode);
@@ -342,13 +373,14 @@ int UdpCommunicateCore::initialize()
     // 获取配置文件实例
     auto &cfg = SingletonTemplate<ConfigWrapper>::getSingletonInstance().getCfgInstance();
     // 获得一些参数配置项
-    m_config.max_packet_size = cfg.getValue("max_packet_size", 1024);
+    m_config.max_send_packet_size = cfg.getValue("max_send_packet_size", 1024);
+    m_config.max_receive_packet_size = cfg.getValue("max_receive_packet_size", 65507);
     m_config.recv_timeout_ms = cfg.getValue("recv_timeout_ms", 100);
     m_config.send_timeout_ms = cfg.getValue("send_timeout_ms", 100);
     m_config.source_port = cfg.getValue("source_port", 0);
-    // 获得订阅端口列表
-    auto subscribe_list = cfg.getList<ConfigInterface::CommInfo>("subscribe_list");
-    for (const auto &item : subscribe_list)
+    // 获得需要监听的端口列表
+    auto listen_list = cfg.getList<ConfigInterface::CommInfo>("listen_list");
+    for (const auto &item : listen_list)
     {
         if (!pimpl_->addListeningSocket(item.IP, item.Port))
         {
@@ -366,14 +398,19 @@ bool UdpCommunicateCore::send(const std::string &dest_addr, int dest_port,
     return pimpl_->sendData(dest_addr, dest_port, data, size);
 }
 
-int UdpCommunicateCore::receiveMessage(const char *addr, int port, communicate::SubscribebBase *sub)
+int UdpCommunicateCore::addListenAddr(const char *addr, int port)
 {
     std::string addr_str(addr ? addr : "");
     if (!pimpl_->addListeningSocket(addr_str, port))
     {
         return -1;
     }
+    return 0;
+}
 
+int UdpCommunicateCore::addSubscribe(const char *addr, int port, communicate::SubscribebBase *sub)
+{
+    std::string addr_str(addr ? addr : "");
     std::string key = UdpCommunicateCore::Impl::createSubKey(addr_str, port);
     pimpl_->addSubscriber(key, sub);
     pimpl_->start();

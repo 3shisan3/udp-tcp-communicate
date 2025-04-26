@@ -68,32 +68,52 @@ int SendMessage(const char *addr, int port, void *pData, size_t size);
  *                      -1表示不指定任务ID，系统自动分配
  * @return
  */
-int addPeriodicSendTask(const char *addr, int port, void *pData, size_t size, int rate, int task_id = -1);
+int AddPeriodicSendTask(const char *addr, int port, void *pData, size_t size, int rate, int task_id = -1);
 
 /**
  * @brief 删除周期发送任务(添加时未指定，不支持删除)
  * @param task_id       任务ID
  * @return
  */
-int removePeriodicSendTask(int task_id);
+int RemovePeriodicSendTask(int task_id);
 
 /**
  * @brief 订阅消息
- * @param pSubscribe    接收消息的处理函数
+ * @param pSubscribe    统一的接收消息的处理函数
+ *                     （排除指定了的消息，所有订阅的消息都使用这个函数）
  * @return
  */
 int Subscribe(SubscribebBase *pSubscribe);
 
 /**
  * @brief 订阅消息
- * @param addr          针对指定来源的消息处理
+ *  优先使用指定发送端的处理函数->次选指定监听通道的处理函数->通用处理函数
+ * @param addr          针对指定（发送方）来源的消息处理
+ * @param port          端口号（发送方使用）
  * @param pSubscribe    接收消息的处理函数
  * @return
  */
-int Subscribe(const char *addr, int port, SubscribebBase *pSubscribe);
+int SubscribeRemote(const char *addr, int port, SubscribebBase *pSubscribe);
+
+/**
+ * @brief 订阅消息（未监听时，会增加监听）
+ * @param addr          非多网卡且需特殊处理场景传空
+ * @param port          端口号（本地监听的消息端口）
+ * @param pSubscribe    接收消息的处理函数
+ * @return
+ */
+int SubscribeLocal(const char *addr, int port, SubscribebBase *pSubscribe);
+
+/**
+ * @brief 添加本地监听端口（正常配置文件就设置好，特殊情况使用）
+ * @param addr          本地网卡IP（默认传空即可）
+ * @param port          端口号
+ * @return
+ */
+int AddListener(const char *addr, int port);
 
 // 设置发送使用的端口（非必要使用）
-void setSendPort(int port);
+void SetSendPort(int port);
 
 }
 

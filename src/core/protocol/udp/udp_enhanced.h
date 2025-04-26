@@ -51,9 +51,6 @@ public:
     // 安全周期发送任务（数据生命周期保障）
     int addPeriodicSendTask(const char *addr, int port, const void *pData, size_t size, int rate, int task_id = -1) override;
 
-    // 订阅接口
-    int Subscribe(const char *addr, int port, communicate::SubscribebBase *pSubscribe);
-
 private:
     // 周期任务结构体（线程安全设计）
     struct PeriodicTask

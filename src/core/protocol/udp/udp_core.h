@@ -56,9 +56,9 @@ public:
     UdpCommunicateCore &operator=(const UdpCommunicateCore &) = delete;
 
     int initialize() override;
-    bool send(const std::string &dest_addr, int dest_port,
-              const void *data, size_t size) override;
-    int receiveMessage(const char *addr, int port, communicate::SubscribebBase *sub) override;
+    bool send(const std::string &dest_addr, int dest_port, const void *data, size_t size) override;
+    int addListenAddr(const char* addr, int port) override;
+    int addSubscribe(const char *addr, int port, communicate::SubscribebBase *sub) override;
     void shutdown() override;
 
     // 修改发送使用的端口
@@ -68,16 +68,17 @@ protected:
     // 配置参数结构体
     struct CoreConfig
     {
-        int recv_timeout_ms = 100;  // 接收超时(毫秒)
-        int send_timeout_ms = 100;  // 发送超时(毫秒)
-        int max_packet_size = 1024; // 最大包大小
-        int source_port = 0;        // 发送源端口，0表示系统自动分配
+        int recv_timeout_ms = 100;          // 接收超时(毫秒)
+        int send_timeout_ms = 100;          // 发送超时(毫秒)
+        int max_send_packet_size = 1024;    // 最大包大小
+        int max_receive_packet_size = 65507;// 最大包大小（IP 层限制（65535 字节） - IP/UDP 头（28 字节）​​ ≈ ​​65507 字节）
+        int source_port = 0;                // 发送源端口，0表示系统自动分配
     } m_config;
 
     /* 拓展可实现 发向指定地址，或者指定类型的消息使用固定的端口
         std::unordered_map<std::string, int> port_mapping
         然后 sendData 函数中根据目的地址和端口进行查找
-        动态管理同样，额外增加一个类故案例
+        动态管理同样，额外增加一个管理对象
     */
 
     class Impl;

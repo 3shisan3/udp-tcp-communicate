@@ -32,8 +32,10 @@ public:
     virtual int initialize() = 0;
     // 发送消息
     virtual bool send(const std::string& dest_addr, int dest_port, const void* data, size_t size) = 0;
-    // 接收消息
-    virtual int receiveMessage(const char* addr, int port, communicate::SubscribebBase *sub) = 0;
+    // 增加监听ip和端口（本地）
+    virtual int addListenAddr(const char* addr, int port) = 0;
+    // 添加接收消息处理函数
+    virtual int addSubscribe(const char* addr, int port, communicate::SubscribebBase *sub) = 0;
     // 销毁/停止
     virtual void shutdown() = 0;
 

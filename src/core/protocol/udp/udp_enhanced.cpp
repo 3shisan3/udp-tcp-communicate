@@ -200,12 +200,6 @@ int UdpCommunicateEnhanced::addPeriodicSendTask(const char *addr, int port,
     return addPeriodicTask(interval_ms, addr, port, task_id, generator);
 }
 
-int UdpCommunicateEnhanced::Subscribe(const char *addr, int port,
-                                      communicate::SubscribebBase *pSubscribe)
-{
-    return receiveMessage(const_cast<char *>(addr), port, pSubscribe);
-}
-
 // 私有辅助函数实现
 UdpCommunicateEnhanced::PeriodicTask *UdpCommunicateEnhanced::getTask(int task_id)
 {

@@ -92,3 +92,6 @@ if (BUILD_TEST)
 	message(STATUS "build test modules")
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/test/api_test ${CMAKE_BINARY_DIR}/api_test)
 endif()
+
+# 打包安装
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/install.cmake)
