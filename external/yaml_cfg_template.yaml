@@ -42,3 +42,5 @@ recv_timeout_ms: 100
 send_timeout_ms: 100
 # 绑定发送源端口(0 为系统自动分配)
 source_port: 0
+# 启用线程池功能时，线程池大小配置
+thread_pool_size: 3
