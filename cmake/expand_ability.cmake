@@ -16,11 +16,22 @@ endif()
 if (THREAD_POOL_MODE)
     message(STATUS "Building with THREAD_POOL_MODE")
 
-    file(GLOB_RECURSE THREADPOOL_SOURCES
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/expand/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/expand/*.cc
-    )
-    target_sources(${PROJECT_NAME} PRIVATE ${THREADPOOL_SOURCES})
+    if (WIN32)
+        file(GLOB_RECURSE THREADPOOL_SOURCES
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/expand/threadpool/windows/*.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/expand/threadpool/windows/*.cc
+        )
+        target_sources(${PROJECT_NAME} PRIVATE ${THREADPOOL_SOURCES})
+        list(APPEND PROJECT_HEADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/expand/threadpool/windows)
+    else()
+        file(GLOB_RECURSE THREADPOOL_SOURCES
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/expand/threadpool/pthread/*.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/expand/threadpool/pthread/*.cc
+        )
+        target_sources(${PROJECT_NAME} PRIVATE ${THREADPOOL_SOURCES})
+        list(APPEND PROJECT_HEADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/expand/threadpool/pthread)
+    endif()
+
     list(APPEND PROJECT_HEADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/expand/threadpool)
 endif()
 

@@ -20,6 +20,7 @@ option(DUAL_ENDPOINT_MODE "部署在双端（接收/发送）使用" OFF)
 option(THREAD_POOL_MODE "使用线程池处理" OFF)
 option(FETCHCONTENT_MANAGE_DEPS  "使用 FetchContent 来管理项目依赖" OFF)
 option(BUILD_TEST "编译测试部分用例"	ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)     # 和 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC") 类似
 
 # 设置C++标准为
 set(CMAKE_CXX_STANDARD 17)
