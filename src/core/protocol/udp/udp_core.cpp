@@ -178,13 +178,13 @@ public:
 
     void addSubscriber(const std::string &key, communicate::SubscribebBase *sub)
     {
-        std::lock_guard<std::mutex> lock(sub_mutex_);
+        std::unique_lock<std::shared_mutex> lock(sub_mutex_);
         subscribers_[key] = sub;
     }
 
     communicate::SubscribebBase *getSubscriber(const std::string &key)
     {
-        std::lock_guard<std::mutex> lock(sub_mutex_);
+        std::shared_lock<std::shared_mutex> lock(sub_mutex_);
         auto it = subscribers_.find(key);
         return it != subscribers_.end() ? it->second : nullptr;
     }
@@ -258,6 +258,11 @@ private:
                                     reinterpret_cast<sockaddr *>(&src_addr), &addr_len);
         if (recv_len <= 0)
             return;
+        
+        // 复制数据到共享内存（避免线程竞争）
+        auto msg_data = std::shared_ptr<void>(malloc(recv_len), free);
+        memcpy(msg_data.get(), buffer.data(), recv_len);
+
         // 获取发送方IP和端口
         char src_ip[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, &src_addr.sin_addr, src_ip, INET_ADDRSTRLEN);
@@ -273,29 +278,39 @@ private:
             local_port = ntohs(local_addr.sin_port);
         }
 
-        // 复制数据到共享内存（避免线程竞争）
-        auto msg_data = std::shared_ptr<void>(malloc(recv_len), free);
-        memcpy(msg_data.get(), buffer.data(), recv_len);
-
-        // 构建所有可能的匹配键
-        std::string sender_key = createSubKey(src_ip, src_port);            // 精确发送方
-        std::string local_key = createSubKey(local_ip, local_port);         // 精确本地
-        std::string wildcard_key = createSubKey("localhost", local_port);   // 本地通用匹配前缀+指定端口
-        std::string any_key = createSubKey("", 0);                          // 完全通配
-
-        if (auto sub = getSubscriber(sender_key) ?:
-                       getSubscriber(local_key)  ?:
-                       getSubscriber(wildcard_key) ?:
-                       getSubscriber(any_key))
+        // 捕获关键信息（避免线程间传递复杂对象）
+        struct MatchContext
         {
+            std::string sender_key;
+            std::string local_key;
+            std::string wildcard_key;
+            std::string any_key;
+        };
+        auto context = std::make_shared<MatchContext>();
+        context->sender_key = createSubKey(src_ip, src_port);           // 精确发送方
+        context->local_key = createSubKey(local_ip, local_port);        // 精确本地
+        context->wildcard_key = createSubKey("localhost", local_port);  // 本地通用匹配前缀+指定端口
+        context->any_key = createSubKey("", 0);                         // 完全通配
+
 #ifdef THREAD_POOL_MODE
-            thread_pool_->enqueue([sub, msg_data] {
-                sub->handleMsg(msg_data); // 调用订阅者的处理接口
-            });
+        thread_pool_->enqueue([this, context, msg_data] {
+            if (auto sub = getSubscriber(context->sender_key) ?:
+                           getSubscriber(context->local_key)  ?:
+                           getSubscriber(context->wildcard_key) ?:
+                           getSubscriber(context->any_key))
+            {
+                sub->handleMsg(msg_data);
+            }
+        });
 #else
+        if (auto sub = getSubscriber(context->sender_key) ?:
+                       getSubscriber(context->local_key)  ?:
+                       getSubscriber(context->wildcard_key) ?:
+                       getSubscriber(context->any_key))
+        {
             sub->handleMsg(msg_data);
-#endif
         }
+#endif
     }
 
     SocketType createAndBindSocket(const std::string &addr, int port)
@@ -372,7 +387,7 @@ private:
 #endif
     std::thread receiver_thread_;
     std::mutex send_mutex_;
-    std::mutex sub_mutex_;
+    std::shared_mutex sub_mutex_;   // 读写锁
     std::mutex socket_mutex_;
     std::vector<ListeningSocket> sockets_;
     std::unordered_map<std::string, communicate::SubscribebBase *> subscribers_;

@@ -21,6 +21,7 @@ Version history
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <shared_mutex>
 #include <thread>
 #include <mutex>
 #include <atomic>
