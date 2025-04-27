@@ -292,8 +292,8 @@ private:
         context->wildcard_key = createSubKey("localhost", local_port);  // 本地通用匹配前缀+指定端口
         context->any_key = createSubKey("", 0);                         // 完全通配
 
-#ifdef THREAD_POOL_MODE
-        thread_pool_->enqueue([this, context, msg_data] {
+        // 生成匹配任务
+        auto process_msg = [this, context, msg_data] {
             if (auto sub = getSubscriber(context->sender_key) ?:
                            getSubscriber(context->local_key)  ?:
                            getSubscriber(context->wildcard_key) ?:
@@ -301,15 +301,12 @@ private:
             {
                 sub->handleMsg(msg_data);
             }
-        });
+        };
+
+#ifdef THREAD_POOL_MODE
+        thread_pool_->enqueue(process_msg);
 #else
-        if (auto sub = getSubscriber(context->sender_key) ?:
-                       getSubscriber(context->local_key)  ?:
-                       getSubscriber(context->wildcard_key) ?:
-                       getSubscriber(context->any_key))
-        {
-            sub->handleMsg(msg_data);
-        }
+        process_msg();
 #endif
     }
 
