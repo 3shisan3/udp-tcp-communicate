@@ -17,6 +17,7 @@ set(DEPEND_LIBS "")
 
 # 设置构建选项前提
 option(DUAL_ENDPOINT_MODE "部署在双端（接收/发送）使用" OFF)
+option(THREAD_POOL_MODE "使用线程池处理" OFF)
 option(FETCHCONTENT_MANAGE_DEPS  "使用 FetchContent 来管理项目依赖" OFF)
 option(BUILD_TEST "编译测试部分用例"	ON)
 
@@ -25,7 +26,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 # 导入配置
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/platform.cmake)
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/thirddepend.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/third_depend.cmake)
 
 # 添加编译输出目录
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin)
@@ -40,35 +41,18 @@ include_directories(
 file(GLOB_RECURSE SOURCES 
     ${CMAKE_CURRENT_SOURCE_DIR}/src/api/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/*.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/*.cc
 )
+
+# 编译生成可执行程序
+add_library(${PROJECT_NAME} SHARED ${SOURCES})
+
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/expand_ability.cmake)
 
 # 打印必要信息
 message(STATUS "CMAKE_BUILD_TYPE:${CMAKE_BUILD_TYPE}")
 message(STATUS "EXTRA_HEADER:${PROJECT_HEADER_DIR}")
 
-# 编译生成可执行程序
-add_library(${PROJECT_NAME} SHARED ${SOURCES})
-
-# 两侧均部署该库场景
-if(DUAL_ENDPOINT_MODE)
-    message(STATUS "Building in DUAL_ENDPOINT_MODE")
-    
-    # 添加双端模式专用源代码
-    file(GLOB_RECURSE DUAL_SOURCES
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/impl/*.cpp
-    )
-    target_sources(${PROJECT_NAME} PRIVATE ${DUAL_SOURCES})
-    
-    # 添加双端模式专用头文件路径
-    list(APPEND PROJECT_HEADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/impl)
-    
-    # 添加宏，便于代码中的统一
-    target_compile_definitions(${PROJECT_NAME} PRIVATE
-        $<$<BOOL:${DUAL_ENDPOINT_MODE}>:DUAL_ENDPOINT_MODE>
-    )
-endif()
-
+# 添加头文件
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${PROJECT_HEADER_DIR}
 )
@@ -78,12 +62,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     yaml-cpp
     ${DEPEND_LIBS}
 )
-# 如果是双端模式，添加额外的链接库
-if(DUAL_ENDPOINT_MODE)
-    target_link_libraries(${PROJECT_NAME} PRIVATE
-        
-    )
-endif()
 
 # 为特定目标添加编译时的宏定义，包括值
 target_compile_definitions(${PROJECT_NAME} PRIVATE PROJECT_NAME="${PROJECT_NAME} ")

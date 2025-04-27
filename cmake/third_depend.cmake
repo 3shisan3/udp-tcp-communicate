@@ -17,14 +17,16 @@ if (FETCHCONTENT_MANAGE_DEPS)
   )
   FetchContent_MakeAvailable(yaml-cpp)
 
-  # 添加 pthreads-win32 下载
-  FetchContent_Declare(
-    pthreads-win32
-    GIT_REPOSITORY https://github.com/GerHobbelt/pthread-win32.git
-    GIT_TAG master
-    GIT_SHALLOW TRUE
-  )
-  FetchContent_MakeAvailable(pthreads-win32)
+  if (THREAD_POOL_MODE)
+    # 添加 pthreads-win32 下载
+    FetchContent_Declare(
+      pthreads-win32
+      GIT_REPOSITORY https://github.com/GerHobbelt/pthread-win32.git
+      GIT_TAG master
+      GIT_SHALLOW TRUE
+    )
+    FetchContent_MakeAvailable(pthreads-win32)
+  endif()
 
   # 基本都是直接包含头文件使用（此处提供项目地址）
   # FetchContent_Declare(
@@ -45,10 +47,9 @@ if (FETCHCONTENT_MANAGE_DEPS)
 else()
   set(YAML_BUILD_SHARED_LIBS OFF)
   add_subdirectory(${PROJECT_ROOT_PATH}/thirdparty/yaml-cpp)
-
   list(APPEND PROJECT_HEADER_DIR ${PROJECT_ROOT_PATH}/thirdparty/yaml-cpp/include)
 
-  if (WIN32)
+  if (THREAD_POOL_MODE AND WIN32)
     add_subdirectory(${PROJECT_ROOT_PATH}/thirdparty/pthreads-win32)
     list(APPEND PROJECT_HEADER_DIR ${PROJECT_ROOT_PATH}/thirdparty/pthreads-win32/include)
   endif()

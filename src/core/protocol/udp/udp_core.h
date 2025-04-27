@@ -42,7 +42,9 @@ Version history
 #define SOCKET_ERROR (-1)
 #endif
 
-#include "utils/threadpool_wrapper.h"
+#ifdef THREAD_POOL_MODE
+#include "threadpool_wrapper.h"
+#endif
 
 /**
  * @brief UDP核心通信类

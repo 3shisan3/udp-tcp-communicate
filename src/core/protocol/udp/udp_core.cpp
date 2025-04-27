@@ -13,9 +13,11 @@
 class UdpCommunicateCore::Impl
 {
 public:
-    Impl(CoreConfig& config) : is_running_(false), config_(config),
-        thread_pool_(std::make_unique<ThreadPoolWrapper>(config.thread_pool_size)) 
+    Impl(CoreConfig& config) : is_running_(false), config_(config)
     {
+#ifdef THREAD_POOL_MODE
+        thread_pool_ = std::make_unique<ThreadPoolWrapper>(config.thread_pool_size);
+#endif
 #ifdef _WIN32
         WSADATA wsaData;
         WSAStartup(MAKEWORD(2, 2), &wsaData);
@@ -286,9 +288,13 @@ private:
                        getSubscriber(wildcard_key) ?:
                        getSubscriber(any_key))
         {
+#ifdef THREAD_POOL_MODE
             thread_pool_->enqueue([sub, msg_data] {
-                sub->handleMsg(msg_data);  // 调用订阅者的处理接口
+                sub->handleMsg(msg_data); // 调用订阅者的处理接口
             });
+#else
+            sub->handleMsg(msg_data);
+#endif
         }
     }
 
@@ -361,7 +367,9 @@ private:
 
     std::atomic<bool> is_running_;
     CoreConfig& config_;
+#ifdef THREAD_POOL_MODE
     std::unique_ptr<ThreadPoolWrapper> thread_pool_;
+#endif
     std::thread receiver_thread_;
     std::mutex send_mutex_;
     std::mutex sub_mutex_;
