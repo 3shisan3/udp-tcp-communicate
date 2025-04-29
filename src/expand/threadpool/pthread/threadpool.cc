@@ -202,10 +202,6 @@ static void *__threadpool_routine(void *arg)
 	pthread_setspecific(pool->key, pool);
 	while (!pool->terminate)
 	{
-		while (pool->pause && !pool->terminate)
-		{
-		}
-			
 		entry = (struct __threadpool_task_entry *)taskqueue_get(pool->taskqueue);
 		if (!entry)
 			break;
@@ -217,7 +213,6 @@ static void *__threadpool_routine(void *arg)
 
 		if (pool->nthreads == 0)
 		{
-			/* Thread pool was destroyed by the task. */
 			free(pool);
 			return NULL;
 		}
@@ -281,69 +276,87 @@ static int __threadpool_create_threads(size_t nthreads, threadpool_t *pool)
 	errno = ret;
 	return -1;
 }
+// 实际创建函数（内部使用）
+static threadpool_t *__threadpool_create_with_queue(size_t nthreads, size_t stacksize, taskqueue_t *taskqueue)
+{
+    if (!taskqueue) return NULL;
+
+    threadpool_t *pool = (threadpool_t *)malloc(sizeof(threadpool_t));
+    if (!pool) {
+        taskqueue_destroy(taskqueue);
+        return NULL;
+    }
+
+    int ret;
+    pool->taskqueue = taskqueue;
+    pool->stacksize = stacksize;
+    pool->nthreads = 0;
+    pool->tid = __zero_tid;
+    pool->terminate = NULL;
+
+    ret = pthread_mutex_init(&pool->mutex, NULL);
+    if (ret != 0) goto error;
+
+    ret = pthread_key_create(&pool->key, NULL);
+    if (ret != 0) goto error;
+
+    if (__threadpool_create_threads(nthreads, pool) < 0)
+        goto error;
+
+    return pool;
+
+error:
+    errno = ret;
+    if (pool) {
+        pthread_key_delete(pool->key);
+        pthread_mutex_destroy(&pool->mutex);
+        taskqueue_destroy(pool->taskqueue);
+        free(pool);
+    }
+    return NULL;
+}
 
 // 用户调用的函数，创建并初始化一个新的线程池，包括消息队列和互斥锁
 threadpool_t *threadpool_create(size_t nthreads, size_t stacksize)
 {
-	threadpool_t *pool;
-	int ret;
-
-	pool = (threadpool_t *)malloc(sizeof (threadpool_t));
-	if (!pool)
-		return NULL;
-
-	pool->taskqueue = taskqueue_create(0, 0);
-	if (pool->taskqueue)
-	{
-		ret = pthread_mutex_init(&pool->mutex, NULL);
-		if (ret == 0)
-		{
-			ret = pthread_key_create(&pool->key, NULL);
-			if (ret == 0)
-			{
-				pool->stacksize = stacksize;
-				pool->nthreads = 0;
-				pool->tid = __zero_tid;
-				pool->terminate = NULL;
-				pool->pause = NULL;
-				if (__threadpool_create_threads(nthreads, pool) >= 0)
-					return pool;
-
-				pthread_key_delete(pool->key);
-			}
-
-			pthread_mutex_destroy(&pool->mutex);
-		}
-
-		errno = ret;
-		taskqueue_destroy(pool->taskqueue);
-	}
-
-	free(pool);
-	return NULL;
+	return __threadpool_create_with_queue(nthreads, stacksize, taskqueue_create(0, 0));
 }
 // 重新绑定新的任务队列
 void threadpool_swap_taskqueue(threadpool_t *pool, taskqueue_t *taskqueue)
 {
-	if (!taskqueue)
-		return;
+	if (!taskqueue || !pool) return;
 
-	// 未使用互斥锁阻塞其他位置操作，消费部分多个线程进行时捕获相同资源难梳理
-	pthread_mutex_lock(&pool->mutex);
-
-	pthread_cond_t term = PTHREAD_COND_INITIALIZER;
-	pool->pause = &term;				// 暂停消费与生产
-	// 使用pause的条件特性及锁的阻塞，而非while和下文的操作（代码美观），待后续todo
-	taskqueue_t *old = pool->taskqueue;
-	taskqueue_put(NULL, old);
-	taskqueue_get(old);					// 通过taskqueue内部锁，确保其他线程暂停前执行任务完成
-	
-	pool->taskqueue = taskqueue;		// 替换任务队列
-	taskqueue_destroy(old);
-	pool->pause = NULL;
-
-	pthread_mutex_unlock(&pool->mutex);
+    pthread_mutex_lock(&pool->mutex);
+    
+    // 保存原有参数
+    size_t nthreads = pool->nthreads;
+    size_t stacksize = pool->stacksize;
+    pthread_t tid = pool->tid;
+    
+    // 创建新线程池
+    threadpool_t *new_pool = __threadpool_create_with_queue(nthreads, stacksize, taskqueue);
+    if (!new_pool) {
+        pthread_mutex_unlock(&pool->mutex);
+        return;
+    }
+    
+    // 转移必要状态
+    new_pool->tid = tid;
+    
+    // 标记旧池为终止状态
+    pool->terminate = (pthread_cond_t*)1; // 特殊标记表示立即终止
+    taskqueue_set_nonblock(pool->taskqueue);
+    
+    pthread_mutex_unlock(&pool->mutex);
+    
+    // 销毁旧池（不处理pending任务）
+    threadpool_destroy(NULL, pool);
+    
+    // 替换指针（需要调用方配合）
+    *pool = *new_pool;
+    free(new_pool);
 }
+
 // 用户调用的函数，分配任务到线程池
 int threadpool_schedule(const struct threadpool_task *task, threadpool_t *pool)
 {
@@ -352,9 +365,6 @@ int threadpool_schedule(const struct threadpool_task *task, threadpool_t *pool)
 	if (buf)
 	{
 		((struct __threadpool_task_entry *)buf)->task = *task;
-		while (pool->pause)
-		{
-		}
 		taskqueue_put(buf, pool->taskqueue);
 		return 0;
 	}
@@ -404,9 +414,6 @@ int threadpool_decrease(threadpool_t *pool)
 		entry = (struct __threadpool_task_entry *)buf;
 		entry->task.routine = __threadpool_exit_routine;
 		entry->task.data = pool;
-		while (pool->pause)
-		{
-		}
 		taskqueue_put_head(entry, pool->taskqueue);
 		return 0;
 	}

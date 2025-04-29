@@ -44,7 +44,6 @@ struct threadpool_t
     pthread_mutex_t mutex;      // 互斥锁
     pthread_key_t key;          // 线程私有数据识别标记
     pthread_cond_t *terminate;  // 线程间同步的条件变量（终止）
-    pthread_cond_t *pause;      // 线程间同步的条件变量（暂停）(目前使用可直接定义为bool)
     taskqueue_t *taskqueue;     // 任务队列
 };
 
