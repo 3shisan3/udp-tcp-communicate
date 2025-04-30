@@ -1,6 +1,6 @@
 /***************************************************************
 Copyright (c) 2022-2030, shisan233@sszc.live.
-All rights reserved.
+SPDX-License-Identifier: MIT 
 File:        threadpool.h
 Version:     1.0
 Author:      cjx
