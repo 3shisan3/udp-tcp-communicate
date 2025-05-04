@@ -65,7 +65,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 )
 
 # 为特定目标添加编译时的宏定义，包括值
-target_compile_definitions(${PROJECT_NAME} PRIVATE PROJECT_NAME="${PROJECT_NAME} ")
+target_compile_definitions(${PROJECT_NAME} PRIVATE PROJECT_NAME=${PROJECT_NAME})
 
 # 测试项目
 if (BUILD_TEST)
