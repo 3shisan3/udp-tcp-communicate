@@ -1,7 +1,6 @@
 #include "communicate_api.h"
 
 #include "common/config_wrapper.h"
-#include "common/logger_wrapper.h"
 #include "common/socket_wrapper.h"
 #include "utils/singleton.h"
 
