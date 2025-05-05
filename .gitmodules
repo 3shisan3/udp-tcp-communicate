@@ -2,6 +2,10 @@
 	path = thirdparty/yaml-cpp
 	url = https://github.com/jbeder/yaml-cpp.git
 
+[submodule "thirdparty/spdlog"]
+	path = thirdparty/spdlog
+	url = https://github.com/gabime/spdlog.git
+
 # 直接使用头文件（提供引用项目地址）
 # [submodule "thirdparty/json_nlohmann"]
 # 	path = thirdparty/json_nlohmann

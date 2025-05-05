@@ -19,6 +19,7 @@ Version history
 #include <memory>
 #include <string>
 
+#include "logger_define.h"
 #include "protocol/communicate_interface.h"
 #include "utils/singleton.h"
 

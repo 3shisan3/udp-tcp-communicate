@@ -1,4 +1,5 @@
 # FetchContent 需要 CMake 3.11 或更高版本。
+option(FETCHCONTENT_MANAGE_DEPS  "使用 FetchContent 来管理项目依赖" OFF)
 
 if (FETCHCONTENT_MANAGE_DEPS)
   # 包含 FetchContent 模块
@@ -16,6 +17,14 @@ if (FETCHCONTENT_MANAGE_DEPS)
     GIT_SHALLOW TRUE          # 只克隆最新提交（节省时间）
   )
   FetchContent_MakeAvailable(yaml-cpp)
+
+  FetchContent_Declare(
+    spdlog
+    GIT_REPOSITORY https://github.com/gabime/spdlog.git
+    GIT_TAG v1.15.2
+    GIT_SHALLOW TRUE
+  )
+  FetchContent_MakeAvailable(spdlog)
 
   # 基本都是直接包含头文件使用（此处提供项目地址）
   # FetchContent_Declare(
@@ -37,4 +46,6 @@ else()
   set(YAML_BUILD_SHARED_LIBS OFF)
   add_subdirectory(${PROJECT_ROOT_PATH}/thirdparty/yaml-cpp)
   list(APPEND PROJECT_HEADER_DIR ${PROJECT_ROOT_PATH}/thirdparty/yaml-cpp/include)
+
+  add_subdirectory(${PROJECT_ROOT_PATH}/thirdparty/spdlog)
 endif()

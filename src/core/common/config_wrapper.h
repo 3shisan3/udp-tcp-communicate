@@ -18,6 +18,7 @@ Version history
 
 #include <memory>
 
+#include "logger_define.h"
 #include "config/config_interface.h"
 #include "utils/singleton.h"
 
