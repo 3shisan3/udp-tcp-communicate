@@ -1,5 +1,7 @@
 #pragma once
 
+#include <chrono>
+#include <ctime>
 #include <string>
 
 #ifdef _WIN32
@@ -68,4 +70,24 @@ static bool create_dir_if_not_exists(const std::string &path)
     }
 #endif
     return false;
+}
+
+
+// 获取当前时间的格式化字符串
+static inline std::string getCurrentTime()
+{
+    auto now = std::chrono::system_clock::now();
+    auto now_time_t = std::chrono::system_clock::to_time_t(now);
+    auto now_tm = *std::localtime(&now_time_t);
+    
+    char buffer[64];
+    strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &now_tm);
+    
+    auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(
+        now.time_since_epoch()) % 1000;
+    
+    char time_str[128];
+    snprintf(time_str, sizeof(time_str), "%s.%03ld", buffer, milliseconds.count());
+    
+    return time_str;
 }

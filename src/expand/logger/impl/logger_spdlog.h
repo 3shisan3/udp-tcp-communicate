@@ -1,7 +1,7 @@
 /***************************************************************
 Copyright (c) 2022-2030, shisan233@sszc.live.
 SPDX-License-Identifier: MIT 
-File:        looger_spdlog.h
+File:        logger_spdlog.h
 Version:     1.0
 Author:      cjx
 start date:
