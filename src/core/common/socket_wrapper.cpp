@@ -15,7 +15,7 @@ int SocketWrapper::initialize()
     auto &cfgInstance = SingletonTemplate<ConfigWrapper>::getSingletonInstance();
     // 获取配置文件描写的通讯协议
     std::string protocol = cfgInstance.getCfgInstance().getValue("protocol", DEFAULT_PROTOCOL);
-    LOG_INFO("Protocol from config: %s", protocol.c_str());
+    LOG_INFO("Protocol from config: {}", protocol);
     
     int ret = 0;
     if (protocol == "udp")
@@ -35,6 +35,20 @@ int SocketWrapper::initialize()
     }
 
     return ret;
+}
+
+void SocketWrapper::destroy()
+{
+    LOG_INFO("Destroying socket wrapper");
+
+    if (m_communicateImp_)
+    {
+        LOG_DEBUG("Destroying communication implementation");
+        m_communicateImp_->shutdown();
+        m_communicateImp_.reset();
+    }
+
+    LOG_INFO("Socket wrapper destroyed successfully");
 }
 
 

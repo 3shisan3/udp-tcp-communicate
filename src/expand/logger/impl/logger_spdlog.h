@@ -16,14 +16,18 @@ Version history
 
 #include "logger_define.h"
 
+// 包含spdlog头文件前，先定义该宏
+#define SPDLOG_ACTIVE_LEVEL GLOBAL_LOG_LEVEL
+
 #include <spdlog/spdlog.h>
+#include <spdlog/sinks/rotating_file_sink.h> 
 
 // 定义所有日志级别的宏
 #define LOG_TRACE(...) \
     do { \
         if constexpr (LOG_LEVEL_TRACE >= GLOBAL_LOG_LEVEL) { \
             if (PROJECT_NAME::logger::shouldLog(LOG_LEVEL_TRACE)) { \
-                SPDLOG_TRACE("[{}] " __VA_ARGS__, TO_STRING(PROJECT_NAME)); \
+                SPDLOG_TRACE(__VA_ARGS__); \
             } \
         } \
     } while (false)
@@ -32,7 +36,7 @@ Version history
     do { \
         if constexpr (LOG_LEVEL_DEBUG >= GLOBAL_LOG_LEVEL) { \
             if (PROJECT_NAME::logger::shouldLog(LOG_LEVEL_DEBUG)) { \
-                SPDLOG_DEBUG("[{}] " __VA_ARGS__, TO_STRING(PROJECT_NAME)); \
+                SPDLOG_DEBUG(__VA_ARGS__); \
             } \
         } \
     } while (false)
@@ -41,7 +45,7 @@ Version history
     do { \
         if constexpr (LOG_LEVEL_INFO >= GLOBAL_LOG_LEVEL) { \
             if (PROJECT_NAME::logger::shouldLog(LOG_LEVEL_INFO)) { \
-                SPDLOG_INFO("[{}] " __VA_ARGS__, TO_STRING(PROJECT_NAME)); \
+                SPDLOG_INFO(__VA_ARGS__); \
             } \
         } \
     } while (false)
@@ -50,7 +54,7 @@ Version history
     do { \
         if constexpr (LOG_LEVEL_WARNING >= GLOBAL_LOG_LEVEL) { \
             if (PROJECT_NAME::logger::shouldLog(LOG_LEVEL_WARNING)) { \
-                SPDLOG_WARN("[{}] " __VA_ARGS__, TO_STRING(PROJECT_NAME)); \
+                SPDLOG_WARN(__VA_ARGS__); \
             } \
         } \
     } while (false)
@@ -59,7 +63,7 @@ Version history
     do { \
         if constexpr (LOG_LEVEL_ERROR >= GLOBAL_LOG_LEVEL) { \
             if (PROJECT_NAME::logger::shouldLog(LOG_LEVEL_ERROR)) { \
-                SPDLOG_ERROR("[{}] " __VA_ARGS__, TO_STRING(PROJECT_NAME)); \
+                SPDLOG_ERROR(__VA_ARGS__); \
             } \
         } \
     } while (false)
@@ -68,7 +72,7 @@ Version history
     do { \
         if constexpr (LOG_LEVEL_CRITICAL >= GLOBAL_LOG_LEVEL) { \
             if (PROJECT_NAME::logger::shouldLog(LOG_LEVEL_CRITICAL)) { \
-                SPDLOG_CRITICAL("[{}] " __VA_ARGS__, TO_STRING(PROJECT_NAME)); \
+                SPDLOG_CRITICAL(__VA_ARGS__); \
             } \
         } \
     } while (false)

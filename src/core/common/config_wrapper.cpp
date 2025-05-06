@@ -42,7 +42,7 @@ ConfigWrapper::FileType ConfigWrapper::identifyFileType(const std::string &cfgPa
         LOG_DEBUG("Identified JSON file by content parsing: {}", cfgPath);
         return FileType::FILE_TYPE_JSON;
     }
-    catch (const nlohmann::json::parse_error &)
+    catch (const nlohmann::json::parse_error &e)
     {
         // Not JSON, continue checking
         LOG_TRACE("JSON parse failed (expected for non-JSON files): {}", e.what());
@@ -53,7 +53,7 @@ ConfigWrapper::FileType ConfigWrapper::identifyFileType(const std::string &cfgPa
         LOG_DEBUG("Identified YAML file by content parsing: {}", cfgPath);
         return FileType::FILE_TYPE_YAML;
     }
-    catch (const YAML::ParserException &)
+    catch (const YAML::ParserException &e)
     {
         // Not YAML, continue checking
         LOG_TRACE("YAML parse failed (expected for non-YAML files): {}", e.what());

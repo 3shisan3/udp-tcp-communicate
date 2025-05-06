@@ -33,6 +33,8 @@ public:
 
     int initialize();
 
+    void destroy();
+
     CommunicateInterface &getCommunicateImp()
     {
         return *m_communicateImp_;

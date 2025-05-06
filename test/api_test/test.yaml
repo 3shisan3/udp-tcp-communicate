@@ -1,4 +1,7 @@
-# 库使用的cfg配置模板
+# 库日志打印级别控制 trace: 0; debug: 1; info: 2; warning: 3; error: 4; critical: 5; off: 6
+runtime_log_level: 0
+# 日志文件输出目录（填空默认输出到控制台）
+log_save_path: "./log"
 
 ### 配置用于通信层初始化 ###
 # 信号订阅目标，考虑到同类信号，但不同来源，需要分对象处理 (按举例格式编写即可)
