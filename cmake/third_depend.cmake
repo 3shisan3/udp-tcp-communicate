@@ -49,3 +49,9 @@ else()
 
   add_subdirectory(${PROJECT_ROOT_PATH}/thirdparty/spdlog)
 endif()
+
+# 给子模块添加必要的编译宏
+target_compile_definitions(spdlog PRIVATE
+  # 设置日志等级
+  $<$<CONFIG:Debug>:SPDLOG_ACTIVE_LEVEL=0>
+)

@@ -56,6 +56,7 @@ if (ENABLE_LOGGING)
     # 设置日志打印级别
     target_compile_definitions(${PROJECT_NAME} PRIVATE 
         $<$<CONFIG:Debug>:GLOBAL_LOG_LEVEL=0>
+        $<$<NOT:$<CONFIG:Debug>>:GLOBAL_LOG_LEVEL=2>  # 非Debug模式
     )
 endif()
 

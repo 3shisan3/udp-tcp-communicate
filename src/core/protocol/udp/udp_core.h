@@ -46,6 +46,7 @@ Version history
 #ifdef THREAD_POOL_MODE
 #include "threadpool_wrapper.h"
 #endif
+#include "common/config_wrapper.h"
 
 /**
  * @brief UDP核心通信类

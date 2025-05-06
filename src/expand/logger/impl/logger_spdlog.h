@@ -21,7 +21,7 @@ Version history
 // 定义所有日志级别的宏
 #define LOG_TRACE(...) \
     do { \
-        if constexpr (!DISABLE_LOGGING && (LOG_LEVEL_TRACE >= GLOBAL_LOG_LEVEL)) { \
+        if constexpr (LOG_LEVEL_TRACE >= GLOBAL_LOG_LEVEL) { \
             if (PROJECT_NAME::logger::shouldLog(LOG_LEVEL_TRACE)) { \
                 SPDLOG_TRACE("[{}] " __VA_ARGS__, TO_STRING(PROJECT_NAME)); \
             } \
@@ -30,7 +30,7 @@ Version history
 
 #define LOG_DEBUG(...) \
     do { \
-        if constexpr (!DISABLE_LOGGING && (LOG_LEVEL_DEBUG >= GLOBAL_LOG_LEVEL)) { \
+        if constexpr (LOG_LEVEL_DEBUG >= GLOBAL_LOG_LEVEL) { \
             if (PROJECT_NAME::logger::shouldLog(LOG_LEVEL_DEBUG)) { \
                 SPDLOG_DEBUG("[{}] " __VA_ARGS__, TO_STRING(PROJECT_NAME)); \
             } \
@@ -39,7 +39,7 @@ Version history
 
 #define LOG_INFO(...) \
     do { \
-        if constexpr (!DISABLE_LOGGING && (LOG_LEVEL_INFO >= GLOBAL_LOG_LEVEL)) { \
+        if constexpr (LOG_LEVEL_INFO >= GLOBAL_LOG_LEVEL) { \
             if (PROJECT_NAME::logger::shouldLog(LOG_LEVEL_INFO)) { \
                 SPDLOG_INFO("[{}] " __VA_ARGS__, TO_STRING(PROJECT_NAME)); \
             } \
@@ -48,7 +48,7 @@ Version history
 
 #define LOG_WARNING(...) \
     do { \
-        if constexpr (!DISABLE_LOGGING && (LOG_LEVEL_WARNING >= GLOBAL_LOG_LEVEL)) { \
+        if constexpr (LOG_LEVEL_WARNING >= GLOBAL_LOG_LEVEL) { \
             if (PROJECT_NAME::logger::shouldLog(LOG_LEVEL_WARNING)) { \
                 SPDLOG_WARN("[{}] " __VA_ARGS__, TO_STRING(PROJECT_NAME)); \
             } \
@@ -57,7 +57,7 @@ Version history
 
 #define LOG_ERROR(...) \
     do { \
-        if constexpr (!DISABLE_LOGGING && (LOG_LEVEL_ERROR >= GLOBAL_LOG_LEVEL)) { \
+        if constexpr (LOG_LEVEL_ERROR >= GLOBAL_LOG_LEVEL) { \
             if (PROJECT_NAME::logger::shouldLog(LOG_LEVEL_ERROR)) { \
                 SPDLOG_ERROR("[{}] " __VA_ARGS__, TO_STRING(PROJECT_NAME)); \
             } \
@@ -66,7 +66,7 @@ Version history
 
 #define LOG_CRITICAL(...) \
     do { \
-        if constexpr (!DISABLE_LOGGING && (LOG_LEVEL_CRITICAL >= GLOBAL_LOG_LEVEL)) { \
+        if constexpr (LOG_LEVEL_CRITICAL >= GLOBAL_LOG_LEVEL) { \
             if (PROJECT_NAME::logger::shouldLog(LOG_LEVEL_CRITICAL)) { \
                 SPDLOG_CRITICAL("[{}] " __VA_ARGS__, TO_STRING(PROJECT_NAME)); \
             } \

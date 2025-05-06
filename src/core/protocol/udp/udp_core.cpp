@@ -8,27 +8,32 @@
 #pragma comment(lib, "ws2_32.lib")
 #endif
 
-#include "common/config_wrapper.h"
-
 class UdpCommunicateCore::Impl
 {
 public:
     Impl(CoreConfig& config) : is_running_(false), config_(config)
     {
+        LOG_TRACE("UDP Core Impl constructor");
 #ifdef THREAD_POOL_MODE
         thread_pool_ = std::make_unique<ThreadPoolWrapper>(config.thread_pool_size);
+        LOG_DEBUG("Created thread pool with size: {}", config.thread_pool_size);
 #endif
 #ifdef _WIN32
         WSADATA wsaData;
-        WSAStartup(MAKEWORD(2, 2), &wsaData);
+        if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
+            LOG_ERROR("WSAStartup failed");
+        else
+            LOG_DEBUG("WSAStartup successful");
 #endif
     }
 
     ~Impl()
     {
+        LOG_TRACE("UDP Core Impl destructor");
         stop();
 #ifdef _WIN32
         WSACleanup();
+        LOG_DEBUG("WSACleanup called");
 #endif
     }
 
@@ -36,6 +41,7 @@ public:
     {
         if (!is_running_.exchange(true))
         {
+            LOG_INFO("Starting UDP receiver thread");
             receiver_thread_ = std::thread(&Impl::receiverLoop, this);
         }
     }
@@ -44,9 +50,11 @@ public:
     {
         if (is_running_.exchange(false))
         {
+            LOG_INFO("Stopping UDP receiver thread");
             if (receiver_thread_.joinable())
             {
                 receiver_thread_.join();
+                LOG_DEBUG("Receiver thread joined");
             }
             closeAllSockets();
         }
@@ -61,6 +69,7 @@ public:
         {
             if (sock.port == port)
             {
+                LOG_WARNING("Port {} is already being listened on", port);
                 return true;
             }
         }
@@ -68,21 +77,25 @@ public:
         SocketType sockfd = createAndBindSocket(addr, port);
         if (sockfd == INVALID_SOCKET)
         {
+            LOG_ERROR("Failed to create/bind socket for {}:{}", addr, port);
             return false;
         }
 
         sockets_.push_back({sockfd, port});
+        LOG_INFO("Added listening socket for {}:{}", addr, port);
         return true;
     }
 
     bool sendData(const std::string &dest_addr, int dest_port,
                   const void *data, size_t size)
     {
+        LOG_TRACE("Attempting to send {} bytes to {}:{}", size, dest_addr, dest_port);
         std::lock_guard<std::mutex> lock(send_mutex_);
 
         SocketType sockfd = socket(AF_INET, SOCK_DGRAM, 0);
         if (sockfd == INVALID_SOCKET)
         {
+            LOG_ERROR("Failed to create socket for sending");
             return false;
         }
         // 强制设置 SO_REUSEADDR，允许端口复用
@@ -90,6 +103,7 @@ public:
         if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR,
                        reinterpret_cast<const char *>(&opt), sizeof(opt)) == SOCKET_ERROR)
         {
+            LOG_ERROR("Failed to set SO_REUSEADDR on socket");
 #ifdef _WIN32
             closesocket(sockfd);
 #else
@@ -120,10 +134,10 @@ public:
             {
 #ifdef _WIN32
                 int error = WSAGetLastError();
-                std::cerr << "Bind failed with error: " << error << std::endl;
+                LOG_ERROR("Bind failed with error: {}", error);
                 closesocket(sockfd);
 #else
-                std::cerr << "Bind failed: " << strerror(errno) << std::endl;
+                LOG_ERROR("Bind failed: {}", strerror(errno));
                 close(sockfd);
 #endif
                 return false;
@@ -136,6 +150,7 @@ public:
 
         if (inet_pton(AF_INET, dest_addr.c_str(), &dest_addr_in.sin_addr) <= 0)
         {
+            LOG_ERROR("Invalid destination address: {}", dest_addr);
 #ifdef _WIN32
             closesocket(sockfd);
 #else
@@ -160,6 +175,7 @@ public:
                 sizeof(dest_addr_in));
             if (sent_bytes != static_cast<ssize_t>(chunk_size))
             {
+                LOG_ERROR("Failed to send complete chunk (sent {} of {} bytes)", sent_bytes, chunk_size);
                 success = false;
                 break;
             }
@@ -173,19 +189,26 @@ public:
         close(sockfd);
 #endif
 
+        if (success)
+            LOG_DEBUG("Successfully sent {} bytes to {}:{}", size, dest_addr, dest_port);
+        else
+            LOG_ERROR("Failed to send complete message to {}:{}", dest_addr, dest_port);
         return success;
     }
 
     void addSubscriber(const std::string &key, communicate::SubscribebBase *sub)
     {
+        LOG_DEBUG("Adding subscriber for key: {}", key);
         std::unique_lock<std::shared_mutex> lock(sub_mutex_);
         subscribers_[key] = sub;
     }
 
     communicate::SubscribebBase *getSubscriber(const std::string &key)
     {
+        LOG_TRACE("Get subscriber for key: {}", key);
         std::shared_lock<std::shared_mutex> lock(sub_mutex_);
         auto it = subscribers_.find(key);
+        LOG_DEBUG("Success subscriber for key: {}", it != subscribers_.end() ? key : "");
         return it != subscribers_.end() ? it->second : nullptr;
     }
 
@@ -203,6 +226,7 @@ private:
 
     void receiverLoop()
     {
+        LOG_INFO("Receiver thread started");
         constexpr int BUFFER_SIZE = 65536;
         char buffer[BUFFER_SIZE];
 
@@ -212,6 +236,7 @@ private:
 
             if (sockets.empty())
             {
+                LOG_TRACE("No sockets to poll, sleeping");
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
                 continue;
             }
@@ -233,18 +258,28 @@ private:
             int ret = poll(pollfds.data(), pollfds.size(), 100);
 #endif
 
-            if (ret <= 0)
+            if (ret < 0)
+            {
+                LOG_ERROR("Poll error: {}", strerror(errno));
                 continue;
+            }
+            else if (ret == 0)
+            {
+                LOG_TRACE("Poll timeout");
+                continue;
+            }
 
             for (size_t i = 0; i < pollfds.size(); ++i)
             {
                 if (pollfds[i].revents & POLLIN)
                 {
+                    LOG_TRACE("Data available on socket {}", i);
                     // recvfrom，getsockname 非线程安全操作，不将整个处理加入线程池
                     processIncomingData(pollfds[i].fd);
                 }
             }
         }
+        LOG_INFO("Receiver thread exiting");
     }
 
     void processIncomingData(SocketType sockfd)
@@ -257,7 +292,12 @@ private:
         ssize_t recv_len = recvfrom(sockfd, buffer.data(), config_.max_receive_packet_size, 0,
                                     reinterpret_cast<sockaddr *>(&src_addr), &addr_len);
         if (recv_len <= 0)
+        {
+            LOG_ERROR("recvfrom failed: {}", strerror(errno));
             return;
+        }
+        
+        LOG_DEBUG("Received {} bytes from socket {}", recv_len, sockfd);
         
         // 复制数据到共享内存（避免线程竞争）
         auto msg_data = std::shared_ptr<void>(malloc(recv_len), free);
@@ -277,6 +317,8 @@ private:
             inet_ntop(AF_INET, &local_addr.sin_addr, local_ip, INET_ADDRSTRLEN);
             local_port = ntohs(local_addr.sin_port);
         }
+
+        LOG_TRACE("Message from {}:{} to {}:{}", src_ip, src_port, local_ip, local_port);
 
         // 捕获关键信息（避免线程间传递复杂对象）
         struct MatchContext
@@ -301,6 +343,10 @@ private:
             {
                 sub->handleMsg(msg_data);
             }
+            else
+            {
+                LOG_WARNING("No subscriber found for message");
+            }
         };
 
 #ifdef THREAD_POOL_MODE
@@ -319,13 +365,22 @@ private:
         SocketType sockfd = socket(AF_INET, SOCK_DGRAM, 0);
         if (sockfd == INVALID_SOCKET)
         {
+            LOG_ERROR("Failed to create socket: {}", strerror(errno));
             return INVALID_SOCKET;
         }
         // 2. 设置 SO_REUSEADDR 选项
         // 允许地址和端口重用（避免 bind() 失败，特别是在程序崩溃后快速重启时）
         int opt = 1;
-        setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR,
-                   reinterpret_cast<const char *>(&opt), sizeof(opt));
+        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char *>(&opt), sizeof(opt)) == SOCKET_ERROR)
+        {
+            LOG_ERROR("Failed to set SO_REUSEADDR: {}", strerror(errno));
+#ifdef _WIN32
+            closesocket(sockfd);
+#else
+            close(sockfd);
+#endif
+            return INVALID_SOCKET;
+        }
         // 3. 初始化服务器地址结构
         sockaddr_in serv_addr = {};
         serv_addr.sin_family = AF_INET;         // IPv4 地址族
@@ -335,9 +390,9 @@ private:
         // 否则，解析指定的 IP 地址（inet_addr 将点分十进制转换为网络字节序）
         serv_addr.sin_addr.s_addr = addr.empty() ? INADDR_ANY : inet_addr(addr.c_str());
         // 5. 绑定 Socket 到指定的 IP 和端口
-        if (bind(sockfd, reinterpret_cast<const sockaddr *>(&serv_addr),
-                 sizeof(serv_addr)) == SOCKET_ERROR)
+        if (bind(sockfd, reinterpret_cast<const sockaddr *>(&serv_addr), sizeof(serv_addr)) == SOCKET_ERROR)
         {
+            LOG_ERROR("Failed to bind socket to {}:{} - {}", addr.empty() ? "INADDR_ANY" : addr, port, strerror(errno));
 #ifdef _WIN32
             closesocket(sockfd);
 #else
@@ -354,11 +409,13 @@ private:
         fcntl(sockfd, F_SETFL, fcntl(sockfd, F_GETFL, 0) | O_NONBLOCK);
 #endif
 
+        LOG_DEBUG("Successfully created and bound socket for {}:{}", addr.empty() ? "INADDR_ANY" : addr, port);
         return sockfd;
     }
 
     void closeAllSockets()
     {
+        LOG_DEBUG("Closing all sockets");
         std::lock_guard<std::mutex> lock(socket_mutex_);
         for (const auto &sock : sockets_)
         {
@@ -391,11 +448,18 @@ private:
 };
 
 // UdpCommunicateCore 方法实现
-UdpCommunicateCore::UdpCommunicateCore() : pimpl_(std::make_unique<Impl>(m_config)) {}
-UdpCommunicateCore::~UdpCommunicateCore() = default;
+UdpCommunicateCore::UdpCommunicateCore() : pimpl_(std::make_unique<Impl>(m_config))
+{
+    LOG_TRACE("UdpCommunicateCore constructor");
+}
+UdpCommunicateCore::~UdpCommunicateCore()
+{
+    LOG_TRACE("UdpCommunicateCore destructor");
+}
 
 int UdpCommunicateCore::initialize()
 {
+    LOG_INFO("Initializing UDP communication core");
     // 获取配置文件实例
     auto &cfg = SingletonTemplate<ConfigWrapper>::getSingletonInstance().getCfgInstance();
     // 获得一些参数配置项
@@ -405,31 +469,42 @@ int UdpCommunicateCore::initialize()
     m_config.send_timeout_ms = cfg.getValue("send_timeout_ms", 100);
     m_config.source_port = cfg.getValue("source_port", 0);
     m_config.thread_pool_size = cfg.getValue("thread_pool_size", 3);
+
+    LOG_DEBUG("Configuration loaded - max_send: {}, max_recv: {}, send_timeout: {}ms, recv_timeout: {}ms, source_port: {}, thread_pool: {}",
+              m_config.max_send_packet_size, m_config.max_receive_packet_size,
+              m_config.send_timeout_ms, m_config.recv_timeout_ms,
+              m_config.source_port, m_config.thread_pool_size);
+
     // 获得需要监听的端口列表
     auto listen_list = cfg.getList<ConfigInterface::CommInfo>("listen_list");
     for (const auto &item : listen_list)
     {
+        LOG_DEBUG("Adding listen address: {}:{}", item.IP, item.Port);
         if (!pimpl_->addListeningSocket(item.IP, item.Port))
         {
-            // std::cerr << "Failed to add listening socket for " << item.IP << ":" << item.Port << std::endl;
+            LOG_ERROR("Failed to add listening socket for {}:{}", item.IP, item.Port);
             return -1;
         }
     }
 
+    LOG_INFO("UDP communication core initialized successfully");
     return 0;
 }
 
 bool UdpCommunicateCore::send(const std::string &dest_addr, int dest_port,
                               const void *data, size_t size)
 {
+    LOG_DEBUG("Sending data to {}:{} (size: {})", dest_addr, dest_port, size);
     return pimpl_->sendData(dest_addr, dest_port, data, size);
 }
 
 int UdpCommunicateCore::addListenAddr(const char *addr, int port)
 {
     std::string addr_str(addr ? addr : "");
+    LOG_DEBUG("Adding listen address: {}:{}", addr_str, port);
     if (!pimpl_->addListeningSocket(addr_str, port))
     {
+        LOG_ERROR("Failed to add listening socket for {}:{}", addr_str, port);
         return -1;
     }
     return 0;
@@ -439,6 +514,7 @@ int UdpCommunicateCore::addSubscribe(const char *addr, int port, communicate::Su
 {
     std::string addr_str(addr ? addr : "");
     std::string key = UdpCommunicateCore::Impl::createSubKey(addr_str, port);
+    LOG_DEBUG("Adding subscriber for key: {}", key);
     pimpl_->addSubscriber(key, sub);
     pimpl_->start();
     return 0;
@@ -446,10 +522,12 @@ int UdpCommunicateCore::addSubscribe(const char *addr, int port, communicate::Su
 
 void UdpCommunicateCore::shutdown()
 {
+    LOG_INFO("Shutting down UDP communication core");
     pimpl_->stop();
 }
 
 void UdpCommunicateCore::setSendPort(int port)
 {
+    LOG_DEBUG("Setting source port to {}", port);
     m_config.source_port = port;
 }
