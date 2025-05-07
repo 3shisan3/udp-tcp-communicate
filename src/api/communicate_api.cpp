@@ -75,7 +75,7 @@ int Destroy()
     return 0;
 }
 
-int SendMessage(const char* addr, int port, void *pData, size_t size)
+int SendGeneralMessage(const char* addr, int port, void *pData, size_t size)
 {
     auto &communicateImp = SingletonTemplate<SocketWrapper>::getSingletonInstance().getCommunicateImp();
     // 发送数据

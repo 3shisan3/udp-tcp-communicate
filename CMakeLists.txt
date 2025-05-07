@@ -21,6 +21,8 @@ option(THREAD_POOL_MODE "使用线程池处理" OFF)
 option(ENABLE_LOGGING "开启日志打印功能" ON)
 option(BUILD_TEST "编译测试部分用例"	ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)     # 和 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC") 类似
+set(CMAKE_BUILD_TYPE "Debug")
+set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/package")
 
 # 设置C++标准为
 set(CMAKE_CXX_STANDARD 17)
@@ -30,7 +32,8 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/platform.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/third_depend.cmake)
 
 # 添加编译输出目录
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin)  # windows只影响 .lib
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin)  # windows侧runtime影响动态库输出目录
 
 # 添加头文件
 include_directories(

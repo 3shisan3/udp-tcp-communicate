@@ -8,7 +8,7 @@ log_save_path: "./log"
 listen_list:
   - ID: "test"
     IP: "127.0.0.1"
-    Port: 2233
+    Port: 1234
   - ID: "test2"
     IP: "127.0.0.1"
     Port: 3322

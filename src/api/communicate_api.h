@@ -56,7 +56,7 @@ int Destroy();
  * @param pData         发送的数据
  * @return
  */
-int SendMessage(const char *addr, int port, void *pData, size_t size);
+int SendGeneralMessage(const char *addr, int port, void *pData, size_t size);
 
 /**
  * @brief 添加周期发送任务(更高级周期生成pData，暂不实现)

@@ -64,16 +64,17 @@ int main()
 
     // Create a new message
     std::string msg = "Hello, World!";
-    // Receive a message by port
+    // 监听由云端 127.0.0.1::6666 发出的消息
     if (SubscribeRemote("127.0.0.1", 6666, new TestHandler()))
     {
         return -1; // Subscribing failed
     }
-    if (SendMessage("127.0.0.1", 2233, &msg, sizeof(msg)))
+    SetSendPort(6666);
+    if (::communicate::SendGeneralMessage("127.0.0.1", 1234, &msg, sizeof(msg)))
     {
         return -1; // Sending failed
     }
-
+    
     // 测试使用，临时改一下发送使用端口，为系统分配
     SetSendPort(0);
 
@@ -86,7 +87,7 @@ int main()
 
     int ret = AddPeriodicSendTask("127.0.0.1", 3322, // 发送到3322端口
                                   periodic_data->data(),
-                                  periodic_data->size(),
+                                  periodic_data->size() + 1, // 包含终止符
                                   rate, task_id);
     if (ret != 0)
     {
