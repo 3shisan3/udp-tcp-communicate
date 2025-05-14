@@ -224,6 +224,7 @@ private:
         int port;
     };
 
+    /* 拓展可参考sogou/workflow 实现轮询线程池 */
     void receiverLoop()
     {
         LOG_INFO("Receiver thread started");

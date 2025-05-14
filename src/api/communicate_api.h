@@ -51,6 +51,13 @@ int Initialize(const char *cfgPath);
 int Destroy();
 
 /**
+ * @brief 发送数据(默认向配置文件中所有配置的对象发送)
+ * @param pData         发送的数据
+ * @return
+ */
+int BroadcastMessage(void *pData, size_t size);
+
+/**
  * @brief 发送数据
  * @param addr          发送的目标
  * @param pData         发送的数据

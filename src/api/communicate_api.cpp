@@ -75,6 +75,22 @@ int Destroy()
     return 0;
 }
 
+int BroadcastMessage(void *pData, size_t size)
+{
+    static auto send_list = SingletonTemplate<ConfigWrapper>::getSingletonInstance().getCfgInstance().
+                        getList<ConfigInterface::CommInfo>("send_list");
+    
+    auto &communicateImp = SingletonTemplate<SocketWrapper>::getSingletonInstance().getCommunicateImp();
+    int ret = 0;
+    for (const auto &target : send_list)
+    {
+        if (!communicateImp.send(target.IP, target.Port, pData, size))
+            ret = -1;
+    }
+
+    return ret;
+}
+
 int SendGeneralMessage(const char* addr, int port, void *pData, size_t size)
 {
     auto &communicateImp = SingletonTemplate<SocketWrapper>::getSingletonInstance().getCommunicateImp();
