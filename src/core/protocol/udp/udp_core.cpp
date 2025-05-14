@@ -1,5 +1,6 @@
 #include "udp_core.h"
 
+#include <chrono>
 #include <cstring>
 #include <iostream>
 #include <functional>
@@ -14,6 +15,7 @@ public:
     Impl(CoreConfig& config) : is_running_(false), config_(config)
     {
         LOG_TRACE("UDP Core Impl constructor");
+        startConnectionPoolCleaner();
 #ifdef THREAD_POOL_MODE
         thread_pool_ = std::make_unique<ThreadPoolWrapper>(config.thread_pool_size);
         LOG_DEBUG("Created thread pool with size: {}", config.thread_pool_size);
@@ -31,6 +33,11 @@ public:
     {
         LOG_TRACE("UDP Core Impl destructor");
         stop();
+        conn_pool_cleaner_running_ = false;
+        if (conn_pool_cleaner_.joinable())
+        {
+            conn_pool_cleaner_.join();
+        }
 #ifdef _WIN32
         WSACleanup();
         LOG_DEBUG("WSACleanup called");
@@ -86,64 +93,36 @@ public:
         return true;
     }
 
-    bool sendData(const std::string &dest_addr, int dest_port,
-                  const void *data, size_t size)
+    // 带连接池支持的发送方法
+    bool sendDataWithPool(const std::string &dest_addr, int dest_port,
+                          const void *data, size_t size)
     {
-        LOG_TRACE("Attempting to send {} bytes to {}:{}", size, dest_addr, dest_port);
-        std::lock_guard<std::mutex> lock(send_mutex_);
+        LOG_TRACE("Attempting to send {} bytes to {}:{} (with connection pool)", size, dest_addr, dest_port);
 
-        SocketType sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+        SocketType sockfd = getOrCreateConnection(dest_addr, dest_port);
         if (sockfd == INVALID_SOCKET)
         {
-            LOG_ERROR("Failed to create socket for sending");
-            return false;
-        }
-        // 强制设置 SO_REUSEADDR，允许端口复用
-        int opt = 1;
-        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR,
-                       reinterpret_cast<const char *>(&opt), sizeof(opt)) == SOCKET_ERROR)
-        {
-            LOG_ERROR("Failed to set SO_REUSEADDR on socket");
+            LOG_WARNING("Failed to get/create connection, creating temp socket");
+            sockfd = createSendSocket(dest_addr, dest_port);
+            if (sockfd == INVALID_SOCKET) return false;
+
+            // 临时socket标志，发送完成后关闭
+            bool result = doSend(sockfd, dest_addr, dest_port, data, size);
 #ifdef _WIN32
             closesocket(sockfd);
 #else
             close(sockfd);
 #endif
-            return false;
+            return result;
         }
-        // 设置发送超时
-#ifdef _WIN32
-        DWORD send_timeout = config_.send_timeout_ms;
-        setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, (const char *)&send_timeout, sizeof(send_timeout));
-#else
-        struct timeval tv;
-        tv.tv_sec = config_.send_timeout_ms / 1000;
-        tv.tv_usec = (config_.send_timeout_ms % 1000) * 1000;
-        setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, (const char *)&tv, sizeof(tv));
-#endif
-        // 如果配置了源端口，则绑定
-        if (config_.source_port > 0)
-        {
-            sockaddr_in local_addr = {};
-            local_addr.sin_family = AF_INET;
-            local_addr.sin_port = htons(config_.source_port);
-            local_addr.sin_addr.s_addr = INADDR_ANY;
 
-            if (bind(sockfd, reinterpret_cast<const sockaddr *>(&local_addr),
-                     sizeof(local_addr)) == SOCKET_ERROR)
-            {
-#ifdef _WIN32
-                int error = WSAGetLastError();
-                LOG_ERROR("Bind failed with error: {}", error);
-                closesocket(sockfd);
-#else
-                LOG_ERROR("Bind failed: {}", strerror(errno));
-                close(sockfd);
-#endif
-                return false;
-            }
-        }
-        // 初始化目标地址
+        return doSend(sockfd, dest_addr, dest_port, data, size);
+    }
+
+    // 实际发送逻辑（复用原有代码）
+    bool doSend(SocketType sockfd, const std::string& dest_addr, int dest_port,
+                const void* data, size_t size)
+    {
         sockaddr_in dest_addr_in = {};
         dest_addr_in.sin_family = AF_INET;
         dest_addr_in.sin_port = htons(dest_port);
@@ -151,11 +130,6 @@ public:
         if (inet_pton(AF_INET, dest_addr.c_str(), &dest_addr_in.sin_addr) <= 0)
         {
             LOG_ERROR("Invalid destination address: {}", dest_addr);
-#ifdef _WIN32
-            closesocket(sockfd);
-#else
-            close(sockfd);
-#endif
             return false;
         }
         // 分片发送逻辑
@@ -165,7 +139,7 @@ public:
         while (remaining > 0)
         {
             size_t chunk_size = (remaining > config_.max_send_packet_size) ? config_.max_send_packet_size : remaining;
-
+            
             ssize_t sent_bytes = sendto(
                 sockfd,
                 data_ptr,
@@ -182,12 +156,6 @@ public:
             data_ptr += sent_bytes;
             remaining -= sent_bytes;
         }
-        // 关闭socket
-#ifdef _WIN32
-        closesocket(sockfd);
-#else
-        close(sockfd);
-#endif
 
         if (success)
             LOG_DEBUG("Successfully sent {} bytes to {}:{}", size, dest_addr, dest_port);
@@ -435,6 +403,122 @@ private:
         return sockets_;
     }
 
+    // 连接池清理线程
+    void startConnectionPoolCleaner()
+    {
+        conn_pool_cleaner_running_ = true;
+        conn_pool_cleaner_ = std::thread([this]() {
+            while (conn_pool_cleaner_running_)
+            {
+                std::this_thread::sleep_for(std::chrono::seconds(30));
+                cleanIdleConnections();
+            }
+        });
+    }
+
+    void cleanIdleConnections()
+    {
+        std::lock_guard<std::mutex> lock(conn_pool_mutex_);
+        auto now = std::chrono::steady_clock::now();
+        for (auto it = conn_pool_.begin(); it != conn_pool_.end(); )
+        {
+            if (now - it->second.last_used > std::chrono::minutes(5))
+            {
+#ifdef _WIN32
+                closesocket(it->second.sockfd);
+#else
+                close(it->second.sockfd);
+#endif
+                it = conn_pool_.erase(it);
+            }
+            else
+            {
+                ++it;
+            }
+        }
+    }
+
+    // 获取或创建连接
+    SocketType getOrCreateConnection(const std::string& addr, int port)
+    {
+        std::string key = addr + ":" + std::to_string(port);
+        
+        // 尝试从连接池获取
+        {
+            std::lock_guard<std::mutex> lock(conn_pool_mutex_);
+            auto it = conn_pool_.find(key);
+            if (it != conn_pool_.end())
+            {
+                it->second.last_used = std::chrono::steady_clock::now();
+                return it->second.sockfd;
+            }
+        }
+
+        // 创建新连接
+        SocketType sockfd = createSendSocket(addr, port);
+        if (sockfd != INVALID_SOCKET)
+        {
+            std::lock_guard<std::mutex> lock(conn_pool_mutex_);
+            conn_pool_[key] = {sockfd, std::chrono::steady_clock::now()};
+        }
+        return sockfd;
+    }
+
+    // 创建发送socket（复用原有逻辑）
+    SocketType createSendSocket(const std::string& addr, int port)
+    {
+        SocketType sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+        if (sockfd == INVALID_SOCKET) {
+            LOG_ERROR("Failed to create socket for sending");
+            return INVALID_SOCKET;
+        }
+        // 设置socket选项（复用原有代码）
+        int opt = 1;
+        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR,
+                      reinterpret_cast<const char*>(&opt), sizeof(opt)) == SOCKET_ERROR) {
+            LOG_ERROR("Failed to set SO_REUSEADDR on socket");
+#ifdef _WIN32
+            closesocket(sockfd);
+#else
+            close(sockfd);
+#endif
+            return INVALID_SOCKET;
+        }
+        // 设置发送超时（复用原有代码）
+#ifdef _WIN32
+        DWORD send_timeout = config_.send_timeout_ms;
+        setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, (const char *)&send_timeout, sizeof(send_timeout));
+#else
+        struct timeval tv;
+        tv.tv_sec = config_.send_timeout_ms / 1000;
+        tv.tv_usec = (config_.send_timeout_ms % 1000) * 1000;
+        setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, (const char *)&tv, sizeof(tv));
+#endif
+        // 绑定源端口（如果配置）
+        if (config_.source_port > 0)
+        {
+            sockaddr_in local_addr = {};
+            local_addr.sin_family = AF_INET;
+            local_addr.sin_port = htons(config_.source_port);
+            local_addr.sin_addr.s_addr = INADDR_ANY;
+
+            if (bind(sockfd, reinterpret_cast<const sockaddr*>(&local_addr),
+                     sizeof(local_addr)) == SOCKET_ERROR)
+            {
+#ifdef _WIN32
+                int error = WSAGetLastError();
+                LOG_ERROR("Bind failed with error: {}", error);
+                closesocket(sockfd);
+#else
+                LOG_ERROR("Bind failed: {}", strerror(errno));
+                close(sockfd);
+#endif
+                return INVALID_SOCKET;
+            }
+        }
+        return sockfd;
+    }
+
     std::atomic<bool> is_running_;
     CoreConfig& config_;
 #ifdef THREAD_POOL_MODE
@@ -446,6 +530,17 @@ private:
     std::mutex socket_mutex_;
     std::vector<ListeningSocket> sockets_;
     std::unordered_map<std::string, communicate::SubscribebBase *> subscribers_;
+
+    // 连接池结构
+    struct Connection
+    {
+        SocketType sockfd;
+        std::chrono::steady_clock::time_point last_used;
+    };
+    std::mutex conn_pool_mutex_;
+    std::unordered_map<std::string, Connection> conn_pool_; // Key: "addr:port"
+    std::thread conn_pool_cleaner_;
+    std::atomic<bool> conn_pool_cleaner_running_{false};
 };
 
 // UdpCommunicateCore 方法实现
@@ -493,10 +588,19 @@ int UdpCommunicateCore::initialize()
 }
 
 bool UdpCommunicateCore::send(const std::string &dest_addr, int dest_port,
-                              const void *data, size_t size)
+    const void *data, size_t size)
 {
-    LOG_DEBUG("Sending data to {}:{} (size: {})", dest_addr, dest_port, size);
-    return pimpl_->sendData(dest_addr, dest_port, data, size);
+// 使用线程池或直接发送
+#ifdef THREAD_POOL_MODE
+    if (pimpl_->thread_pool_)
+    {
+        auto future = pimpl_->thread_pool_->enqueue([=]() {
+            return pimpl_->sendDataWithPool(dest_addr, dest_port, data, size);
+        });
+        return future.get();
+    }
+#endif
+    return pimpl_->sendDataWithPool(dest_addr, dest_port, data, size);
 }
 
 int UdpCommunicateCore::addListenAddr(const char *addr, int port)
