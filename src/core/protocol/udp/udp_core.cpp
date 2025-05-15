@@ -1,6 +1,5 @@
 #include "udp_core.h"
 
-#include <chrono>
 #include <cstring>
 #include <iostream>
 #include <functional>
@@ -15,7 +14,6 @@ public:
     Impl(CoreConfig& config) : is_running_(false), config_(config)
     {
         LOG_TRACE("UDP Core Impl constructor");
-        startConnectionPoolCleaner();
 #ifdef THREAD_POOL_MODE
         thread_pool_ = std::make_unique<ThreadPoolWrapper>(config.thread_pool_size);
         LOG_DEBUG("Created thread pool with size: {}", config.thread_pool_size);
@@ -33,11 +31,7 @@ public:
     {
         LOG_TRACE("UDP Core Impl destructor");
         stop();
-        conn_pool_cleaner_running_ = false;
-        if (conn_pool_cleaner_.joinable())
-        {
-            conn_pool_cleaner_.join();
-        }
+        cleanIdleConnections();
 #ifdef _WIN32
         WSACleanup();
         LOG_DEBUG("WSACleanup called");
@@ -46,6 +40,7 @@ public:
 
     void start()
     {
+        LOG_TRACE("Start listening for UDP messages");
         if (!is_running_.exchange(true))
         {
             LOG_INFO("Starting UDP receiver thread");
@@ -55,6 +50,7 @@ public:
 
     void stop()
     {
+        LOG_TRACE("Stop listening for UDP messages");
         if (is_running_.exchange(false))
         {
             LOG_INFO("Stopping UDP receiver thread");
@@ -69,14 +65,16 @@ public:
 
     bool addListeningSocket(const std::string &addr, int port)
     {
+        std::string key = addr + ":" + std::to_string(port);
+        
         std::lock_guard<std::mutex> lock(socket_mutex_);
 
-        // 检查是否已存在该端口的监听
+        // 检查是否已存在该地址的监听
         for (const auto &sock : sockets_)
         {
-            if (sock.port == port)
+            if (sock.addr_port == key)
             {
-                LOG_WARNING("Port {} is already being listened on", port);
+                LOG_WARNING("The addr_key {} is already being listened on", key);
                 return true;
             }
         }
@@ -84,12 +82,37 @@ public:
         SocketType sockfd = createAndBindSocket(addr, port);
         if (sockfd == INVALID_SOCKET)
         {
-            LOG_ERROR("Failed to create/bind socket for {}:{}", addr, port);
+            LOG_ERROR("Failed to create/bind listen socket for {}:{}", addr, port);
             return false;
         }
 
-        sockets_.push_back({sockfd, port});
+        sockets_.push_back({sockfd, key});
         LOG_INFO("Added listening socket for {}:{}", addr, port);
+        return true;
+    }
+
+    bool addSendConnSocket(const std::string &addr, int port)
+    {
+        std::string key = addr + ":" + std::to_string(port);
+
+        std::lock_guard<std::mutex> lock(socket_mutex_);
+        
+        // 检查是否已存在该目标地址的连接
+        if (conn_pool_.find(key) == conn_pool_.end())
+        {
+            LOG_WARNING("Target addr_key {} is already in the connection pool", key);
+            return true;
+        }
+
+        SocketType sockfd = createSendSocket(addr, port);
+        if (sockfd == INVALID_SOCKET)
+        {
+            LOG_ERROR("Failed to create/bind send socket for {}:{}", addr, port);
+            return false;
+        }
+
+        conn_pool_[key] = sockfd;
+        LOG_INFO("Added send socket for {}:{}", addr, port);
         return true;
     }
 
@@ -189,7 +212,7 @@ private:
     struct ListeningSocket
     {
         SocketType fd;
-        int port;
+        std::string addr_port;
     };
 
     /* 拓展可参考sogou/workflow 实现轮询线程池 */
@@ -403,68 +426,38 @@ private:
         return sockets_;
     }
 
-    // 连接池清理线程
-    void startConnectionPoolCleaner()
-    {
-        conn_pool_cleaner_running_ = true;
-        conn_pool_cleaner_ = std::thread([this]() {
-            while (conn_pool_cleaner_running_)
-            {
-                std::this_thread::sleep_for(std::chrono::seconds(30));
-                cleanIdleConnections();
-            }
-        });
-    }
-
     void cleanIdleConnections()
     {
-        std::lock_guard<std::mutex> lock(conn_pool_mutex_);
-        auto now = std::chrono::steady_clock::now();
-        for (auto it = conn_pool_.begin(); it != conn_pool_.end(); )
+        LOG_TRACE("Clean up the connection pool");
+        std::lock_guard<std::mutex> lock(socket_mutex_);
+
+        for (auto &[_, socket] : conn_pool_)
         {
-            if (now - it->second.last_used > std::chrono::minutes(5))
-            {
 #ifdef _WIN32
-                closesocket(it->second.sockfd);
+            closesocket(socket);
 #else
-                close(it->second.sockfd);
+            close(socket);
 #endif
-                it = conn_pool_.erase(it);
-            }
-            else
-            {
-                ++it;
-            }
         }
+        conn_pool_.clear();
     }
 
-    // 获取或创建连接
+    // 获取连接
     SocketType getOrCreateConnection(const std::string& addr, int port)
     {
         std::string key = addr + ":" + std::to_string(port);
         
         // 尝试从连接池获取
+        auto it = conn_pool_.find(key);
+        if (it != conn_pool_.end())
         {
-            std::lock_guard<std::mutex> lock(conn_pool_mutex_);
-            auto it = conn_pool_.find(key);
-            if (it != conn_pool_.end())
-            {
-                it->second.last_used = std::chrono::steady_clock::now();
-                return it->second.sockfd;
-            }
+            return it->second;
         }
 
-        // 创建新连接
-        SocketType sockfd = createSendSocket(addr, port);
-        if (sockfd != INVALID_SOCKET)
-        {
-            std::lock_guard<std::mutex> lock(conn_pool_mutex_);
-            conn_pool_[key] = {sockfd, std::chrono::steady_clock::now()};
-        }
-        return sockfd;
+        return INVALID_SOCKET;
     }
 
-    // 创建发送socket（复用原有逻辑）
+    // 创建发送socket
     SocketType createSendSocket(const std::string& addr, int port)
     {
         SocketType sockfd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -530,17 +523,8 @@ private:
     std::mutex socket_mutex_;
     std::vector<ListeningSocket> sockets_;
     std::unordered_map<std::string, communicate::SubscribebBase *> subscribers_;
-
     // 连接池结构
-    struct Connection
-    {
-        SocketType sockfd;
-        std::chrono::steady_clock::time_point last_used;
-    };
-    std::mutex conn_pool_mutex_;
-    std::unordered_map<std::string, Connection> conn_pool_; // Key: "addr:port"
-    std::thread conn_pool_cleaner_;
-    std::atomic<bool> conn_pool_cleaner_running_{false};
+    std::unordered_map<std::string, SocketType> conn_pool_; // Key: "addr:port"
 };
 
 // UdpCommunicateCore 方法实现
@@ -579,6 +563,17 @@ int UdpCommunicateCore::initialize()
         if (!pimpl_->addListeningSocket(item.IP, item.Port))
         {
             LOG_ERROR("Failed to add listening socket for {}:{}", item.IP, item.Port);
+            return -1;
+        }
+    }
+    // 获得需要广播的地址列表
+    auto send_list = cfg.getList<ConfigInterface::CommInfo>("send_list");
+    for (const auto &item : listen_list)
+    {
+        LOG_DEBUG("Adding send address: {}:{}", item.IP, item.Port);
+        if (!pimpl_->addSendConnSocket(item.IP, item.Port))
+        {
+            LOG_ERROR("Failed to add send socket for {}:{}", item.IP, item.Port);
             return -1;
         }
     }
