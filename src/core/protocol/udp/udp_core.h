@@ -82,12 +82,11 @@ protected:
         size_t thread_pool_size = 3;        // 线程池大小配置
     } m_config;
 
-    /* 拓展可实现 发向指定地址，或者指定类型的消息使用固定的端口
-        std::unordered_map<std::string, int> port_mapping
-        然后 sendData 函数中根据目的地址和端口进行查找
-        动态管理同样，额外增加一个管理对象
-    */
+#ifdef THREAD_POOL_MODE
+    static std::unique_ptr<ThreadPoolWrapper> s_thread_pool_;
+#endif
 
+private:
     class Impl;
     std::unique_ptr<Impl> pimpl_;
 };

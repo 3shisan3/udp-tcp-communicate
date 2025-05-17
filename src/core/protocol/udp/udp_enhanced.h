@@ -35,8 +35,8 @@ public:
     ~UdpCommunicateEnhanced() override;
 
     // 异步发送接口（线程安全）
-    bool sendAsync(const std::string &dest_addr, int dest_port,
-                   const void *data, size_t size) override;
+    std::future<bool> sendAsync(const std::string &dest_addr, int dest_port,
+                                const void *data, size_t size) override;
 
     // 增强版周期任务接口（带完整错误处理）
     int addPeriodicTask(int interval_ms,
@@ -76,6 +76,12 @@ private:
     std::mutex task_mutex_;                                // 任务管理锁
     std::map<int, int> task_map_;                          // 外部ID到内部ID映射
     std::unordered_map<int, PeriodicTask> periodic_tasks_; // 任务存储
+
+    /* 拓展可实现 发向指定地址，或者指定类型的消息使用固定的端口
+        std::unordered_map<std::string, int> port_mapping
+        然后 sendData 函数中根据目的地址和端口进行查找
+        动态管理同样，额外增加一个管理对象
+    */
 };
 
 #endif // UDP_ENHANCED_H_

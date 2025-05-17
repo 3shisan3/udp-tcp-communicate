@@ -15,10 +15,6 @@ public:
     Impl(CoreConfig& config) : is_running_(false), config_(config)
     {
         LOG_TRACE("UDP Core Impl constructor");
-#ifdef THREAD_POOL_MODE
-        thread_pool_ = std::make_unique<ThreadPoolWrapper>(config.thread_pool_size);
-        LOG_DEBUG("Created thread pool with size: {}", config.thread_pool_size);
-#endif
 #ifdef _WIN32
         WSADATA wsaData;
         if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
@@ -115,30 +111,6 @@ public:
         conn_pool_[key] = sockfd;
         LOG_INFO("Added send socket for {}:{}", addr, port);
         return true;
-    }
-
-    bool sendData(const std::string &dest_addr, int dest_port,
-                  const void *data, size_t size)
-    {
-        // 使用线程池或直接发送
-#ifdef THREAD_POOL_MODE
-        std::shared_ptr<std::vector<char>> buffer = std::make_shared<std::vector<char>>(size);
-        memcpy(buffer->data(), data, size);
-
-        std::promise<bool> promise;
-        auto future = promise.get_future();
-        thread_pool_->enqueue([=, &promise]() {
-            try {
-                bool result = sendDataWithPool(dest_addr, dest_port, buffer->data(), buffer->size());
-                promise.set_value(result);
-            } catch (...) {
-                promise.set_exception(std::current_exception());
-            }
-        });
-
-        return future.get();
-#endif
-        return sendDataWithPool(dest_addr, dest_port, data, size);
     }
 
     // 带连接池支持的发送方法
@@ -367,7 +339,7 @@ private:
         };
 
 #ifdef THREAD_POOL_MODE
-        thread_pool_->enqueue(process_msg);
+    UdpCommunicateCore::s_thread_pool_->enqueue(process_msg);
 #else
         process_msg();
 #endif
@@ -538,10 +510,7 @@ private:
     }
 
     std::atomic<bool> is_running_;
-    CoreConfig& config_;
-#ifdef THREAD_POOL_MODE
-    std::unique_ptr<ThreadPoolWrapper> thread_pool_;
-#endif
+    CoreConfig& config_;    // 引用类型，外部修改同步至内部
     std::thread receiver_thread_;
     std::mutex send_mutex_;
     std::shared_mutex sub_mutex_;   // 读写锁
@@ -551,6 +520,11 @@ private:
     // 连接池结构
     std::unordered_map<std::string, SocketType> conn_pool_; // Key: "addr:port"
 };
+
+#ifdef THREAD_POOL_MODE
+// 初始化共享线程池（作为static成员）
+std::unique_ptr<ThreadPoolWrapper> UdpCommunicateCore::s_thread_pool_ = nullptr;
+#endif
 
 // UdpCommunicateCore 方法实现
 UdpCommunicateCore::UdpCommunicateCore() : pimpl_(std::make_unique<Impl>(m_config))
@@ -579,6 +553,12 @@ int UdpCommunicateCore::initialize()
               m_config.max_send_packet_size, m_config.max_receive_packet_size,
               m_config.send_timeout_ms, m_config.recv_timeout_ms,
               m_config.source_port, m_config.thread_pool_size);
+    
+#ifdef THREAD_POOL_MODE
+    // 创建线程池
+    s_thread_pool_ = std::make_unique<ThreadPoolWrapper>(m_config.thread_pool_size);
+    LOG_DEBUG("Created thread pool with size: {}", m_config.thread_pool_size);
+#endif
 
     // 获得需要监听的端口列表
     auto listen_list = cfg.getList<ConfigInterface::CommInfo>("listen_list");
@@ -608,9 +588,9 @@ int UdpCommunicateCore::initialize()
 }
 
 bool UdpCommunicateCore::send(const std::string &dest_addr, int dest_port,
-    const void *data, size_t size)
+                              const void *data, size_t size)
 {
-    return pimpl_->sendData(dest_addr, dest_port, data, size);
+    return pimpl_->sendDataWithPool(dest_addr, dest_port, data, size);
 }
 
 int UdpCommunicateCore::addListenAddr(const char *addr, int port)

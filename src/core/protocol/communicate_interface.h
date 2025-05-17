@@ -16,6 +16,7 @@ Version history
 #define COMMUNICATE_INTERFACE_H
 
 #include <functional>
+#include <future>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -40,10 +41,11 @@ public:
     virtual void shutdown() = 0;
 
     /* **** 高级功能接口（可选实现） **** */
-    virtual bool sendAsync(const std::string &dest_addr, int dest_port, const void *data, size_t size)
+    virtual std::future<bool> sendAsync(const std::string &dest_addr, int dest_port, const void *data, size_t size)
     {
-        // 默认实现为同步发送
-        return send(dest_addr, dest_port, data, size);
+        return std::async(std::launch::async, [this, dest_addr, dest_port, data, size]() {
+            return this->send(dest_addr, dest_port, data, size);
+        });
     }
     // 周期发送固定数据
     virtual int addPeriodicSendTask(const char *addr, int port, const void *pData, size_t size, int rate, int task_id = -1)

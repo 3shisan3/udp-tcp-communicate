@@ -1,9 +1,9 @@
 #include "udp_enhanced.h"
 
-#include <thread>
-#include <vector>
 #include <chrono>
 #include <cstring>
+#include <thread>
+#include <vector>
 
 UdpCommunicateEnhanced::UdpCommunicateEnhanced()
 {
@@ -27,7 +27,7 @@ UdpCommunicateEnhanced::~UdpCommunicateEnhanced()
     LOG_INFO("All periodic tasks stopped");
 }
 
-bool UdpCommunicateEnhanced::sendAsync(const std::string &dest_addr,
+std::future<bool> UdpCommunicateEnhanced::sendAsync(const std::string &dest_addr,
                                        int dest_port,
                                        const void *data,
                                        size_t size)
@@ -37,26 +37,36 @@ bool UdpCommunicateEnhanced::sendAsync(const std::string &dest_addr,
     // 创建线程安全的数据副本
     std::shared_ptr<std::vector<char>> buffer = std::make_shared<std::vector<char>>(size);
     memcpy(buffer->data(), data, size);
+    auto promise_ptr = std::make_shared<std::promise<bool>>();
 
-    // 启动异步发送线程
-    std::thread([this, dest_addr, dest_port, buffer]() {
+    auto send_task = [this, dest_addr, dest_port, buffer, promise_ptr]() mutable
+    {
         try
         {
             LOG_TRACE("Async send thread started for {}:{}", dest_addr, dest_port);
-            this->send(dest_addr, dest_port, buffer->data(), buffer->size());
+            bool result = this->send(dest_addr, dest_port, buffer->data(), buffer->size());
+            promise_ptr->set_value(result);
             LOG_DEBUG("Async send to {}:{} completed", dest_addr, dest_port);
         }
         catch (const std::exception& e)
         {
             LOG_ERROR("Async send to {}:{} failed: {}", dest_addr, dest_port, e.what());
+            promise_ptr->set_value(false);  // 不进行promise_ptr->set_exception，分析日志
         }
         catch (...)
         {
             LOG_ERROR("Async send to {}:{} failed with unknown exception", dest_addr, dest_port);
+            promise_ptr->set_value(false);
         }
-    }).detach();
+    };
 
-    return true;
+#ifdef THREAD_POOL_MODE
+    s_thread_pool_->enqueue(std::move(send_task));
+#else
+    std::thread(std::move(send_task)).detach();
+#endif
+
+    return promise_ptr->get_future();
 }
 
 int UdpCommunicateEnhanced::addPeriodicTask(
