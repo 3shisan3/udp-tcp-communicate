@@ -17,7 +17,7 @@ set(DEPEND_LIBS "")
 
 # 设置构建选项前提
 option(DUAL_ENDPOINT_MODE "部署在双端（接收/发送）使用" OFF)
-option(THREAD_POOL_MODE "使用线程池处理" OFF)
+option(THREAD_POOL_MODE "使用线程池处理" ON)
 option(ENABLE_LOGGING "开启日志打印功能" ON)
 option(BUILD_TEST "编译测试部分用例"	ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)     # 和 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC") 类似

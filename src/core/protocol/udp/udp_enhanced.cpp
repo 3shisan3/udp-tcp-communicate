@@ -39,7 +39,7 @@ std::future<bool> UdpCommunicateEnhanced::sendAsync(const std::string &dest_addr
     memcpy(buffer->data(), data, size);
     auto promise_ptr = std::make_shared<std::promise<bool>>();
 
-    auto send_task = [this, dest_addr, dest_port, buffer, promise_ptr]() mutable
+    auto send_task = [this, dest_addr, dest_port, buffer, promise_ptr]()
     {
         try
         {
@@ -60,13 +60,16 @@ std::future<bool> UdpCommunicateEnhanced::sendAsync(const std::string &dest_addr
         }
     };
 
+    // 避免竞争条件
+    auto future = promise_ptr->get_future();
+
 #ifdef THREAD_POOL_MODE
     s_thread_pool_->enqueue(std::move(send_task));
 #else
     std::thread(std::move(send_task)).detach();
 #endif
 
-    return promise_ptr->get_future();
+    return future;
 }
 
 int UdpCommunicateEnhanced::addPeriodicTask(
