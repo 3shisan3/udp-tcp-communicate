@@ -44,6 +44,7 @@ int Initialize(const char* cfgPath)
             auto rotating_logger = ::spdlog::rotating_logger_mt("rotating_logger", outFileName, 1048576 * 5, 5);
             rotating_logger->set_pattern(LOG_PATTERN);
             rotating_logger->set_level(static_cast<spdlog::level::level_enum>(runtimeLogLevel));
+            rotating_logger->flush_on(spdlog::level::info); // 设置刷新级别（打印该级别日志自动刷出缓存区日志）
             spdlog::set_default_logger(rotating_logger);
 #endif
         }

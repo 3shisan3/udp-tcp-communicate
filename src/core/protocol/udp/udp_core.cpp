@@ -3,6 +3,7 @@
 #include <cstring>
 #include <iostream>
 #include <functional>
+#include <future>
 
 #ifdef _WIN32
 #pragma comment(lib, "ws2_32.lib")
@@ -114,6 +115,30 @@ public:
         conn_pool_[key] = sockfd;
         LOG_INFO("Added send socket for {}:{}", addr, port);
         return true;
+    }
+
+    bool sendData(const std::string &dest_addr, int dest_port,
+                  const void *data, size_t size)
+    {
+        // 使用线程池或直接发送
+#ifdef THREAD_POOL_MODE
+        std::shared_ptr<std::vector<char>> buffer = std::make_shared<std::vector<char>>(size);
+        memcpy(buffer->data(), data, size);
+
+        std::promise<bool> promise;
+        auto future = promise.get_future();
+        thread_pool_->enqueue([=, &promise]() {
+            try {
+                bool result = sendDataWithPool(dest_addr, dest_port, buffer->data(), buffer->size());
+                promise.set_value(result);
+            } catch (...) {
+                promise.set_exception(std::current_exception());
+            }
+        });
+
+        return future.get();
+#endif
+        return sendDataWithPool(dest_addr, dest_port, data, size);
     }
 
     // 带连接池支持的发送方法
@@ -585,17 +610,7 @@ int UdpCommunicateCore::initialize()
 bool UdpCommunicateCore::send(const std::string &dest_addr, int dest_port,
     const void *data, size_t size)
 {
-// 使用线程池或直接发送
-#ifdef THREAD_POOL_MODE
-    if (pimpl_->thread_pool_)
-    {
-        auto future = pimpl_->thread_pool_->enqueue([=]() {
-            return pimpl_->sendDataWithPool(dest_addr, dest_port, data, size);
-        });
-        return future.get();
-    }
-#endif
-    return pimpl_->sendDataWithPool(dest_addr, dest_port, data, size);
+    return pimpl_->sendData(dest_addr, dest_port, data, size);
 }
 
 int UdpCommunicateCore::addListenAddr(const char *addr, int port)

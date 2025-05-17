@@ -43,6 +43,8 @@ public:
         }
     }
 
+    /* 可实现添加异步返回任务 */
+
 private:
     threadpool_t *pool_;
 };
