@@ -17,14 +17,14 @@ Version history
 
 #include "../communicate_interface.h"
 
+#include <atomic>
 #include <memory>
+#include <mutex>
+#include <shared_mutex>
 #include <string>
+#include <thread>
 #include <unordered_map>
 #include <vector>
-#include <shared_mutex>
-#include <thread>
-#include <mutex>
-#include <atomic>
 
 // 平台相关定义
 #ifdef _WIN32
@@ -68,7 +68,7 @@ public:
     void shutdown() override;
 
     // 修改发送使用的端口
-    void setSendPort(int port);
+    void setSendPort(int port) override;
 
 protected:
     // 配置参数结构体
