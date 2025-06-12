@@ -70,14 +70,14 @@ protected:
     {  
         int recv_timeout_ms = 100;  
         int send_timeout_ms = 100;
-        int connect_timeout_ms = 3000;
-        int max_send_packet_size = 1024;
+        int connect_timeout_ms = 3000;  // TCP特有：连接建立超时（三次握手最长等待时间）
+        int max_send_packet_size = 1460;// 单个数据包最大大小（以太网MTU 1500 - TCP/IP头40）
         int max_receive_packet_size = 65535;
         int source_port = 0;  
         int thread_pool_size = 3;  
-        int max_connections = 100;  // TCP特有：最大连接数  
-        int listen_backlog = 10;    // TCP特有：监听队列长度
-        int keepalive_time = 60;
+        int max_connections = 100;      // TCP特有：最大并发连接数（防资源耗尽）
+        int listen_backlog = 10;        // TCP特有：监听队列长度
+        int keepalive_time = 60;        // 保活机制，设置 0 为不启用保活机制
     } m_config; 
   
 private:  

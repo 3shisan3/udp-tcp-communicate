@@ -1,6 +1,10 @@
 #pragma once
 
+#ifdef _WIN32
+#include "threadpool_win.h"
+#else
 #include "threadpool.h"
+#endif
 
 #include <functional>
 #include <memory>

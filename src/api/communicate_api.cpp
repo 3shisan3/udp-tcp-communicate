@@ -22,6 +22,7 @@ int Initialize(const char* cfgPath)
     // 初始化配置
     auto &cfg = SingletonTemplate<ConfigWrapper>::getSingletonInstance();
     ret = cfg.loadCfgFile(cfgPath);
+    // todo 可以优化，不用替换掉spdlog默认的logger
     // 初始化内部日志配置
     if (!ret)
     {
