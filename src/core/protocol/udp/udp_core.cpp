@@ -484,23 +484,34 @@ private:
         tv.tv_usec = (config_.send_timeout_ms % 1000) * 1000;
         setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, (const char *)&tv, sizeof(tv));
 #endif
-        // 绑定源端口（如果配置）
-        if (config_.source_port > 0)
+        // 绑定源地址（如果配置）
+        if (!config_.source_addr.source_ip.empty() || config_.source_addr.source_port > 0)
         {
             sockaddr_in local_addr = {};
             local_addr.sin_family = AF_INET;
-            local_addr.sin_port = htons(config_.source_port);
-            local_addr.sin_addr.s_addr = INADDR_ANY;
+            local_addr.sin_port = htons(config_.source_addr.source_port);
+            if (!config_.source_addr.source_ip.empty())
+            {
+                inet_pton(AF_INET, config_.source_addr.source_ip.c_str(), &local_addr.sin_addr);
+            }
+            else
+            {
+                local_addr.sin_addr.s_addr = INADDR_ANY;
+            }
 
             if (bind(sockfd, reinterpret_cast<const sockaddr*>(&local_addr),
                      sizeof(local_addr)) == SOCKET_ERROR)
             {
 #ifdef _WIN32
                 int error = WSAGetLastError();
-                LOG_ERROR("Bind failed with error: {}", error);
+                LOG_ERROR("Bind to {}:{} failed - {}", 
+                     config_.source_addr.source_ip.empty() ? "ANY" : config_.source_addr.source_ip,
+                     config_.source_addr.source_port, error);
                 closesocket(sockfd);
 #else
-                LOG_ERROR("Bind failed: {}", strerror(errno));
+                LOG_ERROR("Bind to {}:{} failed - {}", 
+                     config_.source_addr.source_ip.empty() ? "ANY" : config_.source_addr.source_ip,
+                     config_.source_addr.source_port, strerror(errno));
                 close(sockfd);
 #endif
                 return INVALID_SOCKET;
@@ -546,13 +557,15 @@ int UdpCommunicateCore::initialize()
     m_config.max_receive_packet_size = cfg.getValue("max_receive_packet_size", 65507);
     m_config.recv_timeout_ms = cfg.getValue("recv_timeout_ms", 100);
     m_config.send_timeout_ms = cfg.getValue("send_timeout_ms", 100);
-    m_config.source_port = cfg.getValue("source_port", 0);
+    m_config.source_addr.source_port = cfg.getValue("source_port", 0);
+    m_config.source_addr.source_ip = cfg.getValue("source_ip", (std::string)"");
     m_config.thread_pool_size = cfg.getValue("thread_pool_size", 3);
 
-    LOG_DEBUG("Configuration loaded - max_send: {}, max_recv: {}, send_timeout: {}ms, recv_timeout: {}ms, source_port: {}, thread_pool: {}",
+    LOG_DEBUG("Configuration loaded - max_send: {}, max_recv: {}, send_timeout: {}ms, recv_timeout: {}ms, source_addr: {}:{}, thread_pool: {}",
               m_config.max_send_packet_size, m_config.max_receive_packet_size,
               m_config.send_timeout_ms, m_config.recv_timeout_ms,
-              m_config.source_port, m_config.thread_pool_size);
+              m_config.source_addr.source_ip, m_config.source_addr.source_port,
+              m_config.thread_pool_size);
     
 #ifdef THREAD_POOL_MODE
     // 创建线程池
@@ -621,8 +634,9 @@ void UdpCommunicateCore::shutdown()
     pimpl_->stop();
 }
 
-void UdpCommunicateCore::setSendPort(int port)
+void UdpCommunicateCore::setDefSource(int port, std::string ip)
 {
-    LOG_DEBUG("Setting source port to {}", port);
-    m_config.source_port = port;
+    LOG_DEBUG("Setting source addr to {}:{}", ip, port);
+    m_config.source_addr.source_port = port;
+    m_config.source_addr.source_ip = ip;
 }

@@ -56,9 +56,9 @@ public:
     {
         return -1; // 默认不支持
     }
-    virtual void setSendPort(int port)
+    virtual void setDefSource(int port, std::string source_ip = "")
     {
-        // 默认实现不设置发送端口
+        // 默认实现不设置发送端口和网卡
     }
 
     // 创建工厂函数
@@ -78,6 +78,12 @@ protected:
     {
         return -1; // 默认不支持
     }
+
+    struct LocalSourceAddr
+    {
+        std::string source_ip;
+        int source_port = 0;
+    };
 };
 
 #endif // COMMUNICATE_INTERFACE_H

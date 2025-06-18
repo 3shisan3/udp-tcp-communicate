@@ -153,7 +153,7 @@ int AddListener(const char *addr, int port)
 void SetSendPort(int port)
 {
     auto &communicateImp = SingletonTemplate<SocketWrapper>::getSingletonInstance().getCommunicateImp();
-    communicateImp.setSendPort(port);
+    communicateImp.setDefSource(port);
 }
 
 }   // namespace communicate
