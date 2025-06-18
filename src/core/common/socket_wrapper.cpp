@@ -2,6 +2,7 @@
 
 #include "config_wrapper.h"
 #include "protocol/udp/udp_enhanced.h"
+#include "protocol/tcp/tcp_core.h"
 #include "utils/singleton.h"
 
 namespace communicate
@@ -27,6 +28,16 @@ int SocketWrapper::initialize()
             LOG_ERROR("Failed to initialize UDP communication, error code: %d", ret);
         else
             LOG_INFO("UDP communication initialized successfully");
+    }
+    else if (protocol == "tcp")
+    {
+        LOG_INFO("Creating TCP communication instance");
+        m_communicateImp_ = CommunicateInterface::Create<TcpCommunicateCore>();
+        ret = m_communicateImp_->initialize();
+        if (ret != 0)
+            LOG_ERROR("Failed to initialize TCP communication, error code: %d", ret);
+        else
+            LOG_INFO("TCP communication initialized successfully");
     }
     else
     {
