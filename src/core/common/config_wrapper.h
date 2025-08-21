@@ -30,10 +30,8 @@ public:
     int loadCfgFile(const std::string &cfgPath);
     
     // 返回配置文件实例指针
-    ConfigInterface &getCfgInstance()
-    {
-        return *m_cfgPointer_;
-    }
+    ConfigInterface &getCfgInstance();
+    
 
 protected:
     enum class FileType

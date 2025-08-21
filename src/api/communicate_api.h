@@ -42,7 +42,7 @@ public:
  * @param cfgPath   配置文件路径
  * @return
  */
-int Initialize(const char *cfgPath);
+int Initialize(const char *cfgPath = nullptr);
 
 /**
  * @brief 销毁实例

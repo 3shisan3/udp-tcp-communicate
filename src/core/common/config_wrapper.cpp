@@ -8,6 +8,17 @@
 #include "utils/json.hpp"
 #include "utils/yaml.hpp"
 
+ConfigInterface &ConfigWrapper::getCfgInstance()
+{
+    if (!m_cfgPointer_)
+    {
+        // 如果没有加载配置文件，创建一个默认的YAML配置实例
+        m_cfgPointer_ = std::make_unique<YamlCfg>();
+        // 不加载任何文件，直接使用空的YAML节点，依赖getValue的默认值机制
+    }
+    return *m_cfgPointer_;
+}
+
 ConfigWrapper::FileType ConfigWrapper::identifyFileType(const std::string &cfgPath)
 {
     LOG_TRACE("Identifying file type for: {}", cfgPath);

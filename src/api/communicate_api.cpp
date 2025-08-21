@@ -21,7 +21,17 @@ int Initialize(const char* cfgPath)
     int ret = 0;
     // 初始化配置
     auto &cfg = SingletonTemplate<ConfigWrapper>::getSingletonInstance();
-    ret = cfg.loadCfgFile(cfgPath);
+    if (cfgPath != nullptr && strlen(cfgPath) > 0)
+    {
+        // 使用提供的配置文件
+        ret = cfg.loadCfgFile(cfgPath);
+    }
+    else
+    {
+        // 使用默认配置 - 跳过文件加载，直接使用代码中的默认值
+        ret = 0; // 表示成功，将使用各组件的默认配置
+    }
+
     // todo 可以优化，不用替换掉spdlog默认的logger
     // 初始化内部日志配置
     if (!ret)
