@@ -37,6 +37,7 @@ Version history
 #include <unistd.h>
 #include <fcntl.h>
 #include <poll.h>
+#include <netinet/tcp.h>  // TCP协议相关头文件
     typedef int SocketType;
 #define INVALID_SOCKET (-1)
 #define SOCKET_ERROR (-1)

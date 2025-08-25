@@ -436,7 +436,7 @@ private:
     void processIncomingData(SocketType sockfd)
     {
         // 使用配置的最大包大小
-        std::vector<char> buffer;
+        std::vector<char> buffer(config_.max_send_packet_size);
         
         // 接收数据
         ssize_t recv_len = recv(sockfd, buffer.data(), buffer.size(), 0);
@@ -668,7 +668,7 @@ private:
             opt = config_.keepalive_time;   // keepalive 探测包发送间隔(秒)
             setsockopt(sockfd, IPPROTO_TCP, TCP_KEEPINTVL, &opt, sizeof(opt));
             
-            opt = 3;                        // 认为连接失效之前，最多发送的​​探测包次数​​
+            opt = 3;                        // 认为连接失效之前，最多发送的探测包次数
             setsockopt(sockfd, IPPROTO_TCP, TCP_KEEPCNT, &opt, sizeof(opt));
 #endif
         }
@@ -901,8 +901,8 @@ int TcpCommunicateCore::addListenAddr(const char *addr, int port)
     LOG_DEBUG("Adding listen address: {}:{}", addr_str, port);
     if (!pimpl_->addListeningSocket(addr_str, port))
     {
-        LOG_ERROR("Failed to add listening socket for {}:{}", addr_str, port);
-        return -1;
+    LOG_ERROR("Failed to add listening socket for {}:{}", addr_str, port);
+    return -1;
     }
     return 0;
 }
