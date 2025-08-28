@@ -9,9 +9,30 @@
 namespace communicate
 {
 
+namespace {
+    static std::atomic<bool> g_initialized{false};
+    static std::mutex g_init_mutex;
+}
+
 int Initialize(const char* cfgPath)
 {
-    // 统一设置日志格式​​（包括时间、项目名、日志级别等）
+    // 先检查状态避免不必要的锁开销
+    if (g_initialized.load(std::memory_order_acquire)) {
+        fprintf(stderr, "[WARNING] Communicate module already initialized!\n");
+        LOG_WARNING("Communicate module already initialized");
+        return 0; // 或者返回特定的错误码表示重复初始化
+    }
+
+    std::lock_guard<std::mutex> lock(g_init_mutex);
+    
+    // 双重检查锁定模式
+    if (g_initialized.load(std::memory_order_relaxed)) {
+        fprintf(stderr, "[WARNING] Communicate module already initialized (double-checked)!\n");
+        LOG_WARNING("Communicate module already initialized (double-checked)");
+        return 0; // 或者返回特定的错误码表示重复初始化
+    }
+
+    // 统一设置日志格式（包括时间、项目名、日志级别等）
     const std::string LOG_PATTERN = "[%Y-%m-%d %H:%M:%S.%e] [" TO_STRING(PROJECT_NAME) "] [%^%l%$] [%t] [%s:%#] %v";
 #ifdef LOGGING_SCHEME_SPDLOG
     ::spdlog::default_logger()->set_pattern(LOG_PATTERN);
@@ -70,11 +91,28 @@ int Initialize(const char* cfgPath)
         ret = SingletonTemplate<SocketWrapper>::getSingletonInstance().initialize();
     }
 
+    g_initialized.store(true, std::memory_order_release);
     return ret;
 }
 
 int Destroy()
 {
+    // 先检查状态避免不必要的锁开销
+    if (!g_initialized.load(std::memory_order_acquire)) {
+        fprintf(stderr, "[ERROR] Communicate module not initialized!\n");
+        LOG_WARNING("Communicate module not initialized");
+        return 0; // 或者返回特定的错误码表示未初始化
+    }
+
+    std::lock_guard<std::mutex> lock(g_init_mutex);
+    
+    // 双重检查锁定模式
+    if (!g_initialized.load(std::memory_order_relaxed)) {
+        fprintf(stderr, "[ERROR] Communicate module not initialized (double-checked)!\n");
+        LOG_WARNING("Communicate module not initialized (double-checked)");
+        return 0;
+    }
+
     SingletonTemplate<SocketWrapper>::getSingletonInstance().destroy();
 
 #ifdef LOGGING_SCHEME_SPDLOG
@@ -84,6 +122,7 @@ int Destroy()
     spdlog::shutdown();  // 停止异步线程，释放所有记录器
 #endif
 
+    g_initialized.store(false, std::memory_order_release);
     return 0;
 }
 
