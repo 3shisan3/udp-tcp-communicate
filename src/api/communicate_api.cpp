@@ -11,118 +11,107 @@ namespace communicate
 
 namespace {
     static std::atomic<bool> g_initialized{false};
-    static std::mutex g_init_mutex;
+    static std::once_flag g_init_flag;
 }
 
 int Initialize(const char* cfgPath)
 {
     // 先检查状态避免不必要的锁开销
-    if (g_initialized.load(std::memory_order_acquire)) {
+    if (g_initialized.load(std::memory_order_acquire))
+    {
         fprintf(stderr, "[WARNING] Communicate module already initialized!\n");
         LOG_WARNING("Communicate module already initialized");
-        return 0; // 或者返回特定的错误码表示重复初始化
+        return 0;
     }
 
-    std::lock_guard<std::mutex> lock(g_init_mutex);
-    
-    // 双重检查锁定模式
-    if (g_initialized.load(std::memory_order_relaxed)) {
-        fprintf(stderr, "[WARNING] Communicate module already initialized (double-checked)!\n");
-        LOG_WARNING("Communicate module already initialized (double-checked)");
-        return 0; // 或者返回特定的错误码表示重复初始化
-    }
-
-    // 统一设置日志格式（包括时间、项目名、日志级别等）
-    const std::string LOG_PATTERN = "[%Y-%m-%d %H:%M:%S.%e] [" TO_STRING(PROJECT_NAME) "] [%^%l%$] [%t] [%s:%#] %v";
+    std::call_once(g_init_flag, [&]() {
+        // 统一设置日志格式（包括时间、项目名、日志级别等）
+        const std::string LOG_PATTERN = "[%Y-%m-%d %H:%M:%S.%e] [" TO_STRING(PROJECT_NAME) "] [%^%l%$] [%t] [%s:%#] %v";
 #ifdef LOGGING_SCHEME_SPDLOG
-    ::spdlog::default_logger()->set_pattern(LOG_PATTERN);
-    ::spdlog::default_logger()->set_level(static_cast<spdlog::level::level_enum>(GLOBAL_LOG_LEVEL));
+        ::spdlog::default_logger()->set_pattern(LOG_PATTERN);
+        ::spdlog::default_logger()->set_level(static_cast<spdlog::level::level_enum>(GLOBAL_LOG_LEVEL));
 #endif
 
-    int ret = 0;
-    // 初始化配置
-    auto &cfg = SingletonTemplate<ConfigWrapper>::getSingletonInstance();
-    if (cfgPath != nullptr && strlen(cfgPath) > 0)
-    {
-        // 使用提供的配置文件
-        ret = cfg.loadCfgFile(cfgPath);
-    }
-    else
-    {
-        // 使用默认配置 - 跳过文件加载，直接使用代码中的默认值
-        ret = 0; // 表示成功，将使用各组件的默认配置
-    }
-
-    // todo 可以优化，不用替换掉spdlog默认的logger
-    // 初始化内部日志配置
-    if (!ret)
-    {
-        auto &cfgInstance = cfg.getCfgInstance();
-        int runtimeLogLevel = cfgInstance.getValue("runtime_log_level", GLOBAL_LOG_LEVEL);
-        ::PROJECT_NAME::logger::setRuntimeLogLevel(runtimeLogLevel);
-
-        std::string outPath = cfgInstance.getValue("log_save_path", (std::string)"");
-        if (outPath.empty() || !is_path_creatable(outPath))
+        int ret = 0;
+        // 初始化配置
+        auto &cfg = SingletonTemplate<ConfigWrapper>::getSingletonInstance();
+        if (cfgPath != nullptr && strlen(cfgPath) > 0)
         {
-            LOG_CRITICAL("log will be output to the console.");
-        }
-        else if (create_dir_if_not_exists(outPath))
-        {
-            std::string outFileName = outPath + "/" + TO_STRING(PROJECT_NAME) + "_log.txt";
-            LOG_CRITICAL("latest log will be output to the {}.", outFileName);
-
-            // 创建旋转文件日志记录器 - 每个文件最大5MB，保留5个文件
-#ifdef LOGGING_SCHEME_SPDLOG
-            auto rotating_logger = ::spdlog::rotating_logger_mt("rotating_logger", outFileName, 1048576 * 5, 5);
-            rotating_logger->set_pattern(LOG_PATTERN);
-            rotating_logger->set_level(static_cast<spdlog::level::level_enum>(runtimeLogLevel));
-            rotating_logger->flush_on(spdlog::level::info); // 设置刷新级别（打印该级别日志自动刷出缓存区日志）
-            spdlog::set_default_logger(rotating_logger);
-#endif
+            // 使用提供的配置文件
+            ret = cfg.loadCfgFile(cfgPath);
         }
         else
         {
-            LOG_WARNING("the configured address: {} is invalid, the log will be output to the console.", outPath);
+            // 使用默认配置 - 跳过文件加载，直接使用代码中的默认值
+            ret = 0;
         }
-    }
-    // 初始化socket
-    if (!ret)
-    {
-        ret = SingletonTemplate<SocketWrapper>::getSingletonInstance().initialize();
-    }
 
-    g_initialized.store(true, std::memory_order_release);
-    return ret;
+        // 初始化内部日志配置
+        if (!ret)
+        {
+            auto &cfgInstance = cfg.getCfgInstance();
+            int runtimeLogLevel = cfgInstance.getValue("runtime_log_level", GLOBAL_LOG_LEVEL);
+            ::PROJECT_NAME::logger::setRuntimeLogLevel(runtimeLogLevel);
+
+            std::string outPath = cfgInstance.getValue("log_save_path", (std::string)"");
+            if (outPath.empty() || !is_path_creatable(outPath))
+            {
+                LOG_CRITICAL("log will be output to the console.");
+            }
+            else if (create_dir_if_not_exists(outPath))
+            {
+                std::string outFileName = outPath + "/" + TO_STRING(PROJECT_NAME) + "_log.txt";
+                LOG_CRITICAL("latest log will be output to the {}.", outFileName);
+
+                // 创建旋转文件日志记录器 - 每个文件最大5MB，保留5个文件
+#ifdef LOGGING_SCHEME_SPDLOG
+                auto rotating_logger = ::spdlog::rotating_logger_mt("rotating_logger", outFileName, 1048576 * 5, 5);
+                rotating_logger->set_pattern(LOG_PATTERN);
+                rotating_logger->set_level(static_cast<spdlog::level::level_enum>(runtimeLogLevel));
+                rotating_logger->flush_on(spdlog::level::info); // 设置刷新级别（打印该级别日志自动刷出缓存区日志）
+                spdlog::set_default_logger(rotating_logger);
+#endif
+            }
+            else
+            {
+                LOG_WARNING("the configured address: {} is invalid, the log will be output to the console.", outPath);
+            }
+        }
+        // 初始化socket
+        if (!ret)
+        {
+            ret = SingletonTemplate<SocketWrapper>::getSingletonInstance().initialize();
+        }
+
+        g_initialized.store(true, std::memory_order_release);
+    });
+
+    return 0;
 }
 
 int Destroy()
 {
     // 先检查状态避免不必要的锁开销
-    if (!g_initialized.load(std::memory_order_acquire)) {
-        fprintf(stderr, "[ERROR] Communicate module not initialized!\n");
+    if (!g_initialized.load(std::memory_order_acquire))
+    {
+        fprintf(stderr, "[WARNING] Communicate module not initialized!\n");
         LOG_WARNING("Communicate module not initialized");
         return 0; // 或者返回特定的错误码表示未初始化
     }
 
-    std::lock_guard<std::mutex> lock(g_init_mutex);
-    
-    // 双重检查锁定模式
-    if (!g_initialized.load(std::memory_order_relaxed)) {
-        fprintf(stderr, "[ERROR] Communicate module not initialized (double-checked)!\n");
-        LOG_WARNING("Communicate module not initialized (double-checked)");
-        return 0;
-    }
-
-    SingletonTemplate<SocketWrapper>::getSingletonInstance().destroy();
+    std::call_once(g_init_flag, [&]() {
+        SingletonTemplate<SocketWrapper>::getSingletonInstance().destroy();
 
 #ifdef LOGGING_SCHEME_SPDLOG
-    if (auto logger = spdlog::get("rotating_logger")) {
-        logger->flush(); // 确保所有日志写入文件
-    }
-    spdlog::shutdown();  // 停止异步线程，释放所有记录器
+        if (auto logger = spdlog::get("rotating_logger")) {
+            logger->flush(); // 确保所有日志写入文件
+        }
+        spdlog::shutdown();  // 停止异步线程，释放所有记录器
 #endif
 
-    g_initialized.store(false, std::memory_order_release);
+        g_initialized.store(false, std::memory_order_release);
+    });
+
     return 0;
 }
 
