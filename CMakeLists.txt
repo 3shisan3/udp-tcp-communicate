@@ -16,12 +16,20 @@ set(PROJECT_HEADER_DIR "")
 set(DEPEND_LIBS "")
 
 # 设置构建选项前提
+option(UDPTCP_BUILD_SHARED "Build shared library" ON)
+option(UDPTCP_BUILD_DEBUG "Build in debug mode" ON)
+
 option(DUAL_ENDPOINT_MODE "部署在双端（接收/发送）使用" OFF)
-option(THREAD_POOL_MODE "使用线程池处理" ON)
+option(THREAD_POOL_MODE "使用线程池处理" OFF)
 option(ENABLE_LOGGING "开启日志打印功能" ON)
 option(BUILD_TEST "编译测试部分用例"	ON)
+
+if(BUILD_DEBUG)
+    set(CMAKE_BUILD_TYPE "Debug")
+else()
+    set(CMAKE_BUILD_TYPE "Release")
+endif()
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)     # 和 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC") 类似
-set(CMAKE_BUILD_TYPE "Debug")
 set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/package")
 
 # 设置C++标准为
@@ -48,8 +56,12 @@ file(GLOB_RECURSE SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/*.cpp
 )
 
-# 编译生成可执行程序
-add_library(${PROJECT_NAME} SHARED ${SOURCES})
+# 编译生成库
+if(UDPTCP_BUILD_SHARED OR BUILD_SHARED_LIBS)
+    add_library(${PROJECT_NAME} SHARED ${SOURCES})
+else()
+    add_library(${PROJECT_NAME} STAITC ${SOURCES})
+endif()
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/expand_ability.cmake)
 
