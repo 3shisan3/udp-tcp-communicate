@@ -45,6 +45,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin)  # windows�
 
 # 添加头文件
 include_directories(
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/api
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core
     ${CMAKE_CURRENT_SOURCE_DIR}/src/expand/logger
 )
@@ -73,14 +74,21 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${PROJECT_HEADER_DIR}
 )
 
+# 创建对外暴露的目录
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/${PROJECT_NAME})
+# 自动拷贝头文件到对外目录
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/api/communicate_api.h
+               ${CMAKE_CURRENT_BINARY_DIR}/include/${PROJECT_NAME}/communicate_api.h COPYONLY)
 # 显式设置向上传递公开头文件 覆盖 cmake自动推断的INTERFACE_INCLUDE_DIRECTORIES
 target_include_directories(${PROJECT_NAME} PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/api
+    ${CMAKE_CURRENT_BINARY_DIR}/include
 )
 # 链接依赖库 （public 方便上层项目梳理链接行为）
-target_link_libraries(${PROJECT_NAME} PUBLIC
-    yaml-cpp
-    ${DEPEND_LIBS}
+target_link_libraries(${PROJECT_NAME}
+    PUBLIC
+        ${DEPEND_LIBS}
+    PRIVATE
+        yaml-cpp
 )
 
 # 为特定目标添加编译时的宏定义，包括值
