@@ -45,7 +45,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin)  # windows�
 
 # 添加头文件
 include_directories(
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/api
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core
     ${CMAKE_CURRENT_SOURCE_DIR}/src/expand/logger
 )
@@ -74,6 +73,10 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${PROJECT_HEADER_DIR}
 )
 
+# 显式设置向上传递公开头文件 覆盖 cmake自动推断的INTERFACE_INCLUDE_DIRECTORIES
+target_include_directories(${PROJECT_NAME} PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/api
+)
 # 链接依赖库 （public 方便上层项目梳理链接行为）
 target_link_libraries(${PROJECT_NAME} PUBLIC
     yaml-cpp
