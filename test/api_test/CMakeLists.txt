@@ -23,5 +23,5 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 
 # 添加需要链接的库文件  
 target_link_libraries(${PROJECT_NAME} 
-    tcp_udp_communicate
+    udp_tcp_communicate
 )

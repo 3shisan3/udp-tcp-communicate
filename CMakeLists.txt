@@ -22,7 +22,7 @@ option(UDPTCP_BUILD_DEBUG "Build in debug mode" ON)
 option(DUAL_ENDPOINT_MODE "部署在双端（接收/发送）使用" OFF)
 option(THREAD_POOL_MODE "使用线程池处理" OFF)
 option(ENABLE_LOGGING "开启日志打印功能" ON)
-option(BUILD_TEST "编译测试部分用例"	ON)
+option(BUILD_TEST "编译测试部分用例"	OFF)
 
 if(BUILD_DEBUG)
     set(CMAKE_BUILD_TYPE "Debug")
@@ -74,14 +74,14 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${PROJECT_HEADER_DIR}
 )
 
-# 链接依赖库
-target_link_libraries(${PROJECT_NAME} PRIVATE 
+# 链接依赖库 （public 方便上层项目梳理链接行为）
+target_link_libraries(${PROJECT_NAME} PUBLIC
     yaml-cpp
     ${DEPEND_LIBS}
 )
 
 # 为特定目标添加编译时的宏定义，包括值
-target_compile_definitions(${PROJECT_NAME} PRIVATE PROJECT_NAME=${PROJECT_NAME})
+target_compile_definitions(${PROJECT_NAME} PRIVATE PROJECT_NAME=UDPTCP)
 
 # 测试项目
 if (BUILD_TEST)

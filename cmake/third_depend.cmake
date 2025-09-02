@@ -47,5 +47,6 @@ else()
   add_subdirectory(${PROJECT_ROOT_PATH}/thirdparty/yaml-cpp)
   list(APPEND PROJECT_HEADER_DIR ${PROJECT_ROOT_PATH}/thirdparty/yaml-cpp/include)
 
+  set(SPDLOG_BUILD_SHARED ON) # 设置spdlog编译为动态库
   add_subdirectory(${PROJECT_ROOT_PATH}/thirdparty/spdlog)
 endif()
