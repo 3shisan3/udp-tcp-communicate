@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.11)  
   
 # 设置项目名称  
-project(tcp_udp_communicate)
+project(udp-tcp-communicate)
 
 # # 在 Unix-like 系统中使用 $HOME 环境变量  
 # execute_process(COMMAND sh -c "echo $HOME" OUTPUT_VARIABLE USER_HOME_DIR)  
@@ -60,7 +60,7 @@ file(GLOB_RECURSE SOURCES
 if(UDPTCP_BUILD_SHARED OR BUILD_SHARED_LIBS)
     add_library(${PROJECT_NAME} SHARED ${SOURCES})
 else()
-    add_library(${PROJECT_NAME} STAITC ${SOURCES})
+    add_library(${PROJECT_NAME} STATIC ${SOURCES})
 endif()
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/expand_ability.cmake)
