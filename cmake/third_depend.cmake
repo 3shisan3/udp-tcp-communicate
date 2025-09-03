@@ -18,13 +18,15 @@ if (FETCHCONTENT_MANAGE_DEPS)
   )
   FetchContent_MakeAvailable(yaml-cpp)
 
-  FetchContent_Declare(
-    spdlog
-    GIT_REPOSITORY https://github.com/gabime/spdlog.git
-    GIT_TAG v1.15.2
-    GIT_SHALLOW TRUE
-  )
-  FetchContent_MakeAvailable(spdlog)
+  if(NOT TARGET spdlog AND NOT TARGET spdlog::spdlog)
+    FetchContent_Declare(
+      spdlog
+      GIT_REPOSITORY https://github.com/gabime/spdlog.git
+      GIT_TAG v1.15.2
+      GIT_SHALLOW TRUE
+    )
+    FetchContent_MakeAvailable(spdlog)
+  endif()
 
   # 基本都是直接包含头文件使用（此处提供项目地址）
   # FetchContent_Declare(
@@ -45,8 +47,10 @@ if (FETCHCONTENT_MANAGE_DEPS)
 else()
   set(YAML_BUILD_SHARED_LIBS OFF)
   add_subdirectory(${PROJECT_ROOT_PATH}/thirdparty/yaml-cpp)
-  list(APPEND PROJECT_HEADER_DIR ${PROJECT_ROOT_PATH}/thirdparty/yaml-cpp/include)
+  # list(APPEND PROJECT_HEADER_DIR ${PROJECT_ROOT_PATH}/thirdparty/yaml-cpp/include)
 
-  set(SPDLOG_BUILD_SHARED ${SPDLOG_BUILD_SHARED}) # 设置spdlog编译为动态库
-  add_subdirectory(${PROJECT_ROOT_PATH}/thirdparty/spdlog)
+  if(NOT TARGET spdlog AND NOT TARGET spdlog::spdlog)
+    set(SPDLOG_BUILD_SHARED ${SPDLOG_BUILD_SHARED}) # 设置spdlog编译为动态库
+    add_subdirectory(${PROJECT_ROOT_PATH}/thirdparty/spdlog)
+  endif()
 endif()

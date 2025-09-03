@@ -17,18 +17,12 @@ set(DEPEND_LIBS "")
 
 # 设置构建选项前提
 option(UDPTCP_BUILD_SHARED "Build shared library" ON)
-option(UDPTCP_BUILD_DEBUG "Build in debug mode" ON)
 
 option(DUAL_ENDPOINT_MODE "部署在双端（接收/发送）使用" OFF)
 option(THREAD_POOL_MODE "使用线程池处理" OFF)
 option(ENABLE_LOGGING "开启日志打印功能" ON)
 option(BUILD_TEST "编译测试部分用例"	OFF)
 
-if(BUILD_DEBUG)
-    set(CMAKE_BUILD_TYPE "Debug")
-else()
-    set(CMAKE_BUILD_TYPE "Release")
-endif()
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)     # 和 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC") 类似
 set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/package")
 
@@ -84,10 +78,8 @@ target_include_directories(${PROJECT_NAME} PUBLIC
     ${CMAKE_CURRENT_BINARY_DIR}/include
 )
 # 链接依赖库 （public 方便上层项目梳理链接行为）
-target_link_libraries(${PROJECT_NAME}
-    PUBLIC
+target_link_libraries(${PROJECT_NAME} PRIVATE
         ${DEPEND_LIBS}
-    PRIVATE
         yaml-cpp
 )
 

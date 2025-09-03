@@ -47,7 +47,11 @@ if (ENABLE_LOGGING)
         # 添加宏说明使用spdlog方案
         target_compile_definitions(${PROJECT_NAME} PRIVATE LOGGING_SCHEME_SPDLOG)
         # 库链接名
-        list(APPEND DEPEND_LIBS spdlog::spdlog)
+        if(TARGET spdlog)
+            list(APPEND DEPEND_LIBS spdlog)
+        else()
+            list(APPEND DEPEND_LIBS spdlog::spdlog)
+        endif()
     else()  # 使用默认的打印（iostream）
         
     endif()
