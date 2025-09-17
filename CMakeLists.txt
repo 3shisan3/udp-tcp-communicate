@@ -78,7 +78,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
     ${CMAKE_CURRENT_BINARY_DIR}/include
 )
 # 链接依赖库 （public 方便上层项目梳理链接行为）
-target_link_libraries(${PROJECT_NAME} PRIVATE
+target_link_libraries(${PROJECT_NAME} PUBLIC
         ${DEPEND_LIBS}
         yaml-cpp
 )
