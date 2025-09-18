@@ -45,12 +45,12 @@ if (FETCHCONTENT_MANAGE_DEPS)
   # )
   # FetchContent_MakeAvailable(zlib)
 else()
-  set(YAML_BUILD_SHARED_LIBS OFF)
+  set(YAML_BUILD_SHARED_LIBS ${UDPTCP_BUILD_SHARED})
   add_subdirectory(${PROJECT_ROOT_PATH}/thirdparty/yaml-cpp)
   # list(APPEND PROJECT_HEADER_DIR ${PROJECT_ROOT_PATH}/thirdparty/yaml-cpp/include)
 
   if(NOT TARGET spdlog AND NOT TARGET spdlog::spdlog)
-    set(SPDLOG_BUILD_SHARED ${SPDLOG_BUILD_SHARED}) # 设置spdlog编译为动态库
+    set(SPDLOG_BUILD_SHARED ${UDPTCP_BUILD_SHARED}) # 设置spdlog编译为动态库
     add_subdirectory(${PROJECT_ROOT_PATH}/thirdparty/spdlog)
   endif()
 endif()
