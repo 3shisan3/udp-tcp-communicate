@@ -47,6 +47,7 @@ int Initialize(const char* cfgPath)
         }
 
         // 初始化内部日志配置
+#ifdef ENABLE_LOGGING
         if (!ret)
         {
             auto &cfgInstance = cfg.getCfgInstance();
@@ -77,6 +78,7 @@ int Initialize(const char* cfgPath)
                 LOG_WARNING("the configured address: {} is invalid, the log will be output to the console.", outPath);
             }
         }
+#endif
         // 初始化socket
         if (!ret)
         {
