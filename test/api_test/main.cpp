@@ -7,20 +7,26 @@
 #include <string>
 #include <thread>
 #include <atomic>
+#include <vector>
 
 using namespace communicate;
 
 std::atomic<bool> running(true);
 
-// 改进的测试处理器
+// 的测试处理器
 class TestPeriodicHandler : public SubscribebBase
 {
 public:
-    int handleMsg(std::shared_ptr<void> msg) override
+    // 修改：增加len参数
+    int handleMsg(std::shared_ptr<void> msg, size_t len) override
     {
         const char *data = static_cast<const char *>(msg.get());
+        
+        // 方法1：使用string的带长度构造函数（安全）
+        std::string safe_str(data, len);
+        
         std::cout << "[RECV] " << std::chrono::system_clock::now().time_since_epoch().count()
-                  << " - " << data << std::endl;
+                  << " - " << safe_str << " (len=" << len << ")" << std::endl;
         return 0;
     }
 };
@@ -28,12 +34,17 @@ public:
 class TestHandler : public SubscribebBase
 {
 public:
-    int handleMsg(std::shared_ptr<void> msg) override
+    // 修改：增加len参数
+    int handleMsg(std::shared_ptr<void> msg, size_t len) override
     {
-        // Assuming msg is a string for simplicity
-        std::string *message = static_cast<std::string *>(msg.get());
-        std::cout << "Received message: " << *message << std::endl;
-        return 0; // Success
+        // 假设接收的是字符串
+        const char *data = static_cast<const char *>(msg.get());
+        
+        // 安全构造字符串
+        std::string message(data, len);
+        
+        std::cout << "Received message: " << message << " (size=" << len << ")" << std::endl;
+        return 0;
     }
 };
 
@@ -62,17 +73,27 @@ int main()
         return -1;
     }
 
-    // Create a new message
+    // 创建新消息
     std::string msg = "Hello, World!";
-    // 监听由云端 127.0.0.1::6666 发出的消息
+    
+    // 监听由云端 127.0.0.1:6666 发出的消息
     if (SubscribeRemote("127.0.0.1", 6666, new TestHandler()))
     {
-        return -1; // Subscribing failed
+        std::cerr << "远程订阅失败" << std::endl;
+        Destroy();
+        return -1;
     }
+    
     SetSendPort(6666);
-    if (::communicate::SendGeneralMessage("127.0.0.1", 1234, &msg, sizeof(msg)))
+    
+    // 发送消息 - 注意：不需要+1
+    if (::communicate::SendGeneralMessage("127.0.0.1", 1234, 
+                                         (void*)msg.data(),  // 使用data()而不是c_str()
+                                         msg.size()))       // 使用size()而不是size()+1
     {
-        return -1; // Sending failed
+        std::cerr << "发送失败" << std::endl;
+        Destroy();
+        return -1;
     }
     
     // 测试使用，临时改一下发送使用端口，为系统分配
@@ -86,8 +107,8 @@ int main()
     auto periodic_data = std::make_shared<std::string>("Periodic message");
 
     int ret = AddPeriodicSendTask("127.0.0.1", 3322, // 发送到3322端口
-                                  periodic_data->data(),
-                                  periodic_data->size() + 1, // 包含终止符
+                                  (void*)periodic_data->data(),  // 使用data()
+                                  periodic_data->size(),         // 发送端不用添加上终止符
                                   rate, task_id);
     if (ret != 0)
     {
@@ -96,7 +117,8 @@ int main()
         return -1;
     }
 
-    std::cout << "周期任务已启动，10秒后停止..." << std::endl;
+    std::cout << "周期任务已启动（10Hz），10秒后停止..." << std::endl;
+    std::cout << "注意：发送数据时不包含结束符，接收端使用长度参数安全处理" << std::endl;
 
     // 等待10秒
     for (int i = 0; i < 10 && running; ++i)
@@ -105,7 +127,7 @@ int main()
     }
 
     // 删除周期任务
-    if (RemovePeriodicSendTask(task_id))
+    if (RemovePeriodicSendTask(task_id) != 0)
     {
         std::cerr << "删除周期任务失败" << std::endl;
     } else {
@@ -116,7 +138,7 @@ int main()
     std::this_thread::sleep_for(std::chrono::seconds(5));
 
     // 销毁API
-    if (Destroy()) {
+    if (Destroy() != 0) {
         std::cerr << "API销毁失败" << std::endl;
         return -1;
     }

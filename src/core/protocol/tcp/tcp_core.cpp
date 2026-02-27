@@ -476,13 +476,14 @@ private:
         context->any_key = createSubKey("", 0);
 
         // 生成处理任务
-        auto process_msg = [this, context, msg_data] {
+        auto msg_with_len = std::make_shared<std::pair<std::shared_ptr<void>, size_t>>(msg_data, recv_len);
+        auto process_msg = [this, context, msg_with_len] {
             if (auto sub = getSubscriber(context->sender_key) ?:
                            getSubscriber(context->local_key)  ?:
                            getSubscriber(context->wildcard_key) ?:
                            getSubscriber(context->any_key))
             {
-                sub->handleMsg(msg_data);
+                sub->handleMsg(msg_with_len->first, msg_with_len->second);
             }
             else
             {

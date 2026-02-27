@@ -29,12 +29,12 @@ public:
 
 public:
     /**
-     *  @brief 处理接收到的数据
-     *  @param topic   消息的通道名
-     *  @param msg     收到的信息
-     *  @return 错误码
+     * @brief 处理接收到的数据
+     * @param msg    收到的数据
+     * @param len    数据长度（重要：二进制安全，不依赖'\0'结束符）
+     * @return 错误码
      */
-    virtual int handleMsg(std::shared_ptr<void> msg) = 0;
+    virtual int handleMsg(std::shared_ptr<void> msg, size_t len) = 0;
 };
 
 /**
