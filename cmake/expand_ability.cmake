@@ -59,7 +59,7 @@ if (ENABLE_LOGGING)
     list(APPEND PROJECT_HEADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/expand/logger/impl)
     # 设置日志打印级别
     target_compile_definitions(${PROJECT_NAME} PRIVATE 
-        $<$<CONFIG:Debug>:GLOBAL_LOG_LEVEL=0>
+        $<$<CONFIG:Debug>:GLOBAL_LOG_LEVEL=1>
         $<$<NOT:$<CONFIG:Debug>>:GLOBAL_LOG_LEVEL=2>  # 非Debug模式
     )
 endif()

@@ -190,6 +190,12 @@ int AddListener(const char *addr, int port)
     return communicateImp.addListenAddr(addr, port);
 }
 
+int AddSender(const char *addr, int port)
+{
+    auto &communicateImp = SingletonTemplate<SocketWrapper>::getSingletonInstance().getCommunicateImp();
+    return communicateImp.addSenderAddr(addr, port);
+}
+
 void SetSendPort(int port)
 {
     auto &communicateImp = SingletonTemplate<SocketWrapper>::getSingletonInstance().getCommunicateImp();

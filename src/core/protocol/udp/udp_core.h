@@ -62,6 +62,7 @@ public:
     UdpCommunicateCore &operator=(const UdpCommunicateCore &) = delete;
 
     int initialize() override;
+    int addSenderAddr(const char* addr, int port) override;
     bool send(const std::string &dest_addr, int dest_port, const void *data, size_t size) override;
     int addListenAddr(const char* addr, int port) override;
     int addSubscribe(const char *addr, int port, communicate::SubscribebBase *sub) override;

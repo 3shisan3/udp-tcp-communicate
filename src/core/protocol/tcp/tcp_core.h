@@ -59,6 +59,7 @@ public:
   
     // 基础功能实现  
     int initialize() override;
+    int addSenderAddr(const char* addr, int port) override;
     // 发送会优先使用已经建立连接的源，后文 setDefSource 不会影响
     bool send(const std::string& dest_addr, int dest_port, const void* data, size_t size) override;  
     int addListenAddr(const char* addr, int port) override;  

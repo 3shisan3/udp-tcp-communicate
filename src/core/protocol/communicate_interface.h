@@ -31,6 +31,8 @@ public:
     /* **** 基础功能 **** */
     // 初始化
     virtual int initialize() = 0;
+    // 添加发送目标ip和端口
+    virtual int addSenderAddr(const char* addr, int port) = 0;
     // 发送消息
     virtual bool send(const std::string& dest_addr, int dest_port, const void* data, size_t size) = 0;
     // 增加监听ip和端口（本地）

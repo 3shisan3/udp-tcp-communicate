@@ -119,6 +119,15 @@ int SubscribeLocal(const char *addr, int port, SubscribebBase *pSubscribe);
  */
 int AddListener(const char *addr, int port);
 
+/**
+ * @brief 添加本地发送端口（正常配置文件就设置好，特殊情况使用）
+ * 避免重复未通过配置文件注册，重复发送创建临时socket
+ * @param addr          本地网卡IP（默认传空即可）
+ * @param port          端口号
+ * @return
+ */
+int AddSender(const char *addr, int port);
+
 // 设置发送使用的端口（非必要使用）
 void SetSendPort(int port);
 

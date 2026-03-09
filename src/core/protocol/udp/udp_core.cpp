@@ -620,6 +620,18 @@ int UdpCommunicateCore::initialize()
     return 0;
 }
 
+int UdpCommunicateCore::addSenderAddr(const char *addr, int port)
+{
+    std::string addr_str(addr ? addr : "");
+    LOG_DEBUG("Adding send address: {}:{}", addr_str, port);
+    if (!pimpl_->addSendConnSocket(addr_str, port))
+    {
+        LOG_ERROR("Failed to add sender socket for {}:{}", addr_str, port);
+        return -1;
+    }
+    return 0;
+}
+
 bool UdpCommunicateCore::send(const std::string &dest_addr, int dest_port,
                               const void *data, size_t size)
 {
